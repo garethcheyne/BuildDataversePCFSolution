@@ -1,0 +1,9 @@
+# BuildDataverseSolution specific files
+.version
+
+# Common files to ignore
+*.log
+*.tmp
+*~
+.DS_Store
+Thumbs.db
