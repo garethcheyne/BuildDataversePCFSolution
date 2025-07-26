@@ -1,0 +1,138 @@
+name: Build and Release PCF Control
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+env:
+  SOLUTION_NAME: PCFFluentUiAutoCompleteGooglePlaces
+  
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '6.0.x'
+        
+    - name: Install Power Platform CLI
+      run: dotnet tool install --global Microsoft.PowerApps.CLI.Tool
+        
+    - name: Run build script
+      run: .\BuildDataverseSolution\build-solution.ps1 -BuildConfiguration "Release" -CiMode "GitHub"
+      shell: pwsh
+        
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: pcf-control-build
+        path: |
+          out/
+          ${{ env.SOLUTION_NAME }}.zip
+        retention-days: 30
+        
+    - name: Upload solution artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: solution-package
+        path: ${{ env.SOLUTION_NAME }}.zip
+        retention-days: 90
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Download solution artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: solution-package
+        
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        body: |
+          ## PCF FluentUI AutoComplete - Google Places ${{ github.ref }}
+          
+          ### 🚀 What's New
+          - Enhanced Google Places API integration
+          - Interactive hover cards with Google Maps
+          - Country restriction toggle functionality
+          - Improved accessibility and performance
+          
+          ### 💾 Installation
+          1. Download the `${{ env.SOLUTION_NAME }}.zip` file
+          2. Import it into your Power Platform environment
+          3. Configure your Google Places API key
+          4. Add the control to your forms or canvas apps
+          
+          ### 📋 Requirements
+          - Power Platform environment with PCF controls enabled
+          - Google Places API key
+          - Places API and Maps JavaScript API enabled
+          
+          ### 🔧 Configuration
+          See the [README](https://github.com/garethcheyne/PCF-FluentUi-AutoComplete-GooglePlaces/blob/main/README.md) for detailed configuration instructions.
+          
+          ---
+          
+          **Full Changelog**: https://github.com/garethcheyne/PCF-FluentUi-AutoComplete-GooglePlaces/compare/v1.0.0...${{ github.ref }}
+        draft: false
+        prerelease: false
+        
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./${{ env.SOLUTION_NAME }}.zip
+        asset_name: ${{ env.SOLUTION_NAME }}.zip
+        asset_content_type: application/zip
+
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push'
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'

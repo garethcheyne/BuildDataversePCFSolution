@@ -1,0 +1,31 @@
+# Basic PCF Control Configuration Example
+
+solution:
+  name: "BasicTextInput"
+  displayName: "Basic Text Input Control"
+  description: "A simple text input PCF control"
+  version: "1.0.0.0"
+
+publisher:
+  name: "MyCompany"
+  displayName: "My Company"
+  prefix: "mc"
+
+project:
+  pcfProjectPath: "./BasicTextInput.pcfproj"
+  pcfRootPath: "./"
+
+build:
+  cleanBuild: true
+  npmCommand: "ci"
+  pcfBuildCommand: "build"
+
+validation:
+  requiredFiles:
+    - "ControlManifest.Input.xml"
+    - "index.ts"
+    - "package.json"
+  
+  postBuildFiles:
+    - "out/bundle.js"
+    - "out/ControlManifest.xml"

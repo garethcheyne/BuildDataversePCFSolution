@@ -1,0 +1,164 @@
+# Advanced PCF Control Configuration Example
+# This example shows a more complex configuration with custom scripts and validation
+
+solution:
+  name: "AdvancedDataGrid"
+  displayName: "Advanced Data Grid Control"
+  description: "A feature-rich data grid PCF control with sorting, filtering, and custom actions"
+  version: "2.1.0.0"
+
+publisher:
+  name: "DataSolutions"
+  displayName: "Data Solutions Inc."
+  prefix: "ds"
+  description: "Enterprise data management solutions"
+
+project:
+  pcfProjectPath: "./AdvancedDataGrid.pcfproj"
+  pcfRootPath: "./"
+  buildOutputPath: "./out"
+  packageJsonPath: "./package.json"
+
+build:
+  cleanBuild: true
+  nodeVersion: "18"
+  dotnetVersion: "6.0.x"
+  npmCommand: "ci"
+  pcfBuildCommand: "build"
+
+solutionStructure:
+  tempDirectory: "temp-solution"
+  expectedFiles:
+    - "bin/Release/solution.zip"
+    - "src/Other/Solution.xml"
+    - "solution.cdsproj"
+
+validation:
+  requiredFiles:
+    - "ControlManifest.Input.xml"
+    - "index.ts"
+    - "package.json"
+    - "tsconfig.json"
+    - "webpack.config.js"
+    - "src/components/DataGrid.tsx"
+  
+  postBuildFiles:
+    - "out/bundle.js"
+    - "out/ControlManifest.xml"
+    - "out/bundle.js.map"
+  
+  solutionValidation:
+    minPackageSize: 2048
+    requiredComponents:
+      - "CustomControls"
+
+github:
+  repository:
+    owner: "datasolutions"
+    name: "advanced-data-grid-pcf"
+    branch: "main"
+  
+  release:
+    titleTemplate: "{{solution.displayName}} v{{solution.version}}"
+    bodyTemplate: |
+      ## 📊 {{solution.displayName}} {{solution.version}}
+      
+      ### 🚀 What's New
+      - Enhanced sorting algorithms for better performance
+      - New filtering options with custom operators
+      - Improved accessibility compliance (WCAG 2.1 AA)
+      - Mobile responsive design updates
+      
+      ### 💾 Installation
+      1. Download the `{{solution.name}}.zip` file
+      2. Import it into your Power Platform environment
+      3. Configure data source connections
+      4. Add the control to your model-driven app forms
+      
+      ### 📋 Requirements
+      - Power Platform environment with PCF controls enabled
+      - Dataverse environment
+      - Modern web browser (Chrome 90+, Edge 90+, Firefox 88+)
+      
+      ### 🔧 Configuration
+      - **Data Source**: Configure your table connections
+      - **Display Options**: Customize columns, sorting, and filtering
+      - **Actions**: Set up custom action buttons and handlers
+      
+      For detailed setup instructions, see our [Documentation]({{github.repository.url}}/blob/{{github.repository.branch}}/docs/setup.md).
+
+scripts:
+  preBuild: |
+    Write-Host "🔍 Validating advanced data grid prerequisites..."
+    
+    # Check if required environment variables are set
+    if (-not $env:API_KEY) {
+        Write-Warning "API_KEY environment variable not set - some features may not work"
+    }
+    
+    # Validate TypeScript configuration
+    if (Test-Path "tsconfig.json") {
+        $tsconfig = Get-Content "tsconfig.json" | ConvertFrom-Json
+        if ($tsconfig.compilerOptions.target -ne "ES2017") {
+            Write-Warning "TypeScript target should be ES2017 for optimal compatibility"
+        }
+    }
+    
+    Write-Host "✅ Pre-build validation completed"
+  
+  postBuild: |
+    Write-Host "🧪 Running post-build validation and tests..."
+    
+    # Check bundle size
+    if (Test-Path "out/bundle.js") {
+        $bundleSize = (Get-Item "out/bundle.js").Length
+        $maxSize = 5MB
+        if ($bundleSize -gt $maxSize) {
+            Write-Warning "Bundle size ($([math]::Round($bundleSize/1MB, 2)) MB) exceeds recommended maximum ($([math]::Round($maxSize/1MB, 2)) MB)"
+        } else {
+            Write-Host "✅ Bundle size OK: $([math]::Round($bundleSize/1KB, 2)) KB"
+        }
+    }
+    
+    # Run ESLint if available
+    if (Test-Path "node_modules/.bin/eslint.cmd") {
+        Write-Host "🔍 Running ESLint..."
+        & .\node_modules\.bin\eslint.cmd --ext .ts,.tsx src/
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "✅ ESLint passed"
+        }
+    }
+    
+    Write-Host "✅ Post-build validation completed"
+  
+  prePackage: |
+    Write-Host "📦 Preparing advanced package..."
+    
+    # Generate build info file
+    $buildInfo = @{
+        version = "{{solution.version}}"
+        buildDate = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+        buildMachine = $env:COMPUTERNAME
+        gitCommit = if (Get-Command git -ErrorAction SilentlyContinue) { & git rev-parse --short HEAD } else { "unknown" }
+    }
+    
+    $buildInfo | ConvertTo-Json | Out-File "out/build-info.json"
+    Write-Host "✅ Build info generated"
+  
+  postPackage: |
+    Write-Host "🎉 Advanced Data Grid package created successfully!"
+    
+    # Calculate and display package statistics
+    if (Test-Path "{{solution.name}}.zip") {
+        $packageSize = (Get-Item "{{solution.name}}.zip").Length
+        Write-Host "📊 Package Statistics:"
+        Write-Host "   Size: $([math]::Round($packageSize/1KB, 2)) KB"
+        Write-Host "   Components: Data Grid Control with advanced features"
+        Write-Host "   Ready for: Enterprise deployment"
+    }
+
+logging:
+  level: "Info"
+  showTimestamps: true
+  useColors: true
+  logFile: "./build-advanced.log"
