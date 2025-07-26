@@ -14,22 +14,22 @@ $BUILDSOLUTION_RAW_URL = "https://raw.githubusercontent.com/garethcheyne/BuildDa
 # Color output functions
 function Write-Success {
     param([string]$Message)
-    Write-Host "✅ SUCCESS: $Message" -ForegroundColor Green
+    Write-Host "[+] SUCCESS: $Message" -ForegroundColor Green
 }
 
 function Write-Info {
     param([string]$Message)
-    Write-Host "ℹ️  INFO: $Message" -ForegroundColor Cyan
+    Write-Host "[i] INFO: $Message" -ForegroundColor Cyan
 }
 
 function Write-Warning {
     param([string]$Message)
-    Write-Host "⚠️  WARNING: $Message" -ForegroundColor Yellow
+    Write-Host "[!] WARNING: $Message" -ForegroundColor Yellow
 }
 
 function Write-Error {
     param([string]$Message)
-    Write-Host "❌ ERROR: $Message" -ForegroundColor Red
+    Write-Host "[x] ERROR: $Message" -ForegroundColor Red
 }
 
 function Write-Header {
@@ -128,7 +128,7 @@ function Install-BuildDataverseSolution {
     $downloadedFiles = 0
     
     foreach ($file in $filesToDownload) {
-        $sourceUrl = "$BUILDSOLUTION_RAW_URL/BuildDataverseSolution/$($file.Source)"
+        $sourceUrl = "$BUILDSOLUTION_RAW_URL/$($file.Source)"
         $destPath = Join-Path $buildSolutionDir $file.Dest
         
         Write-Info "Downloading $($file.Source)..."

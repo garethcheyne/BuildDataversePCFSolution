@@ -103,7 +103,7 @@ install_builddataversesolution() {
     local downloaded_files=0
     
     for file in "${files[@]}"; do
-        local source_url="$BUILDSOLUTION_RAW_URL/BuildDataverseSolution/$file"
+        local source_url="$BUILDSOLUTION_RAW_URL/$file"
         local dest_path="BuildDataverseSolution/$file"
         
         print_info "Downloading $file..."
