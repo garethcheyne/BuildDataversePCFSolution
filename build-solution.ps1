@@ -18,6 +18,8 @@
     Override clean build setting from config file
 .PARAMETER BuildConfiguration
     Build configuration (Debug, Release) - default: Release
+.PARAMETER SolutionType
+    Solution type to build (Managed, Unmanaged, Both) - default: Both
 .PARAMETER CiMode
     CI/CD mode (GitHub, DevOps, Local) - auto-detected if not specified
 .EXAMPLE
@@ -25,15 +27,19 @@
     .\build-solution.ps1 -ConfigFile ".\custom-solution.yaml"
     .\build-solution.ps1 -SolutionName "MyCustomSolution" -BuildConfiguration "Debug"
     .\build-solution.ps1 -CiMode "DevOps" -BuildConfiguration "Release"
+    .\build-solution.ps1 -SolutionType "Managed" -BuildConfiguration "Release"
+    .\build-solution.ps1 -SolutionType "Both"
 #>
 
 param(
-    [string]$ConfigFile = "../solution.yaml",
+    [string]$ConfigFile = "./solution.yaml",
     [string]$SolutionName = "",
     [string]$PublisherName = "", 
     [string]$PublisherPrefix = "",
     [bool]$CleanBuild = $true,
     [string]$BuildConfiguration = "Release",
+    [ValidateSet("Managed", "Unmanaged", "Both")]
+    [string]$SolutionType = "Both",
     [string]$CiMode = ""
 )
 
@@ -106,43 +112,35 @@ function Parse-YamlFile {
     
     $yaml = @{}
     $currentSection = $null
-    $currentSubSection = $null
     
-    Get-Content $FilePath | ForEach-Object {
-        $line = $_.Trim()
+    # Read content and handle BOM properly
+    $content = Get-Content $FilePath -Encoding UTF8 -Raw
+    $content = $content -replace "^\xEF\xBB\xBF", ""  # Remove BOM if present
+    $lines = $content -split "`r?`n"
+    
+    foreach ($rawLine in $lines) {
+        $line = $rawLine.Trim()
         
         # Skip comments and empty lines
         if ($line.StartsWith("#") -or [string]::IsNullOrWhiteSpace($line)) {
-            return
+            continue
         }
         
-        # Handle top-level sections
+        # Handle top-level sections (no indentation, ends with colon)
         if ($line -match "^([a-zA-Z_][a-zA-Z0-9_]*):$") {
             $currentSection = $matches[1]
             $yaml[$currentSection] = @{}
-            $currentSubSection = $null
         }
-        # Handle sub-sections with 2 spaces
-        elseif ($line -match "^  ([a-zA-Z_][a-zA-Z0-9_]*):(.*)$") {
+        # Handle properties with 2 spaces indentation
+        elseif ($rawLine -match "^  ([a-zA-Z_][a-zA-Z0-9_]*): ?(.+)$") {
             $key = $matches[1]
             $value = $matches[2].Trim()
             
-            if ([string]::IsNullOrWhiteSpace($value)) {
-                $currentSubSection = $key
-                $yaml[$currentSection][$key] = @{}
-            } else {
-                # Remove quotes and parse value
-                $value = $value -replace '^["\']|["\']$', ''
-                $yaml[$currentSection][$key] = $value
-            }
-        }
-        # Handle sub-sub-sections with 4 spaces
-        elseif ($line -match "^    ([a-zA-Z_][a-zA-Z0-9_]*):(.*)$") {
-            $key = $matches[1]
-            $value = $matches[2].Trim() -replace '^["\']|["\']$', ''
+            # Remove surrounding quotes
+            $value = $value -replace '^"(.*)"$', '$1' -replace "^'(.*)'$", '$1'
             
-            if ($currentSubSection) {
-                $yaml[$currentSection][$currentSubSection][$key] = $value
+            if ($currentSection) {
+                $yaml[$currentSection][$key] = $value
             }
         }
     }
@@ -190,15 +188,23 @@ try {
     $config = Parse-YamlFile -FilePath $ConfigFile
     
     # Override config values with command line parameters
-    $finalSolutionName = if ($SolutionName) { $SolutionName } else { $config.solution.name }
+    $baseSolutionName = if ($SolutionName) { $SolutionName } else { $config.solution.name }
+    $solutionVersion = $config.solution.version
+    $finalSolutionName = "${baseSolutionName}_v${solutionVersion}"
     $finalPublisherName = if ($PublisherName) { $PublisherName } else { $config.publisher.name }
     $finalPublisherPrefix = if ($PublisherPrefix) { $PublisherPrefix } else { $config.publisher.prefix }
     $finalCleanBuild = if ($PSBoundParameters.ContainsKey('CleanBuild')) { $CleanBuild } else { $config.build.cleanBuild -eq "true" }
+    $finalSolutionType = if ($PSBoundParameters.ContainsKey('SolutionType')) { $SolutionType } else { 
+        if ($config.build.solutionType) { $config.build.solutionType } else { "Both" }
+    }
     
     Write-Info "Starting PCF Control Build Process..."
-    Write-Info "Solution Name: $finalSolutionName"
+    Write-Info "Solution Name: $baseSolutionName"
+    Write-Info "Solution Version: $solutionVersion"
+    Write-Info "Final Package Name: $finalSolutionName.zip"
     Write-Info "Publisher: $finalPublisherName ($finalPublisherPrefix)"
     Write-Info "Build Configuration: $BuildConfiguration"
+    Write-Info "Solution Type: $finalSolutionType"
     Write-Info "Clean Build: $finalCleanBuild"
     
     # Step 1: Validate required files
@@ -215,7 +221,19 @@ try {
     # Step 2: Clean previous build artifacts
     if ($finalCleanBuild) {
         Write-Info "Cleaning previous build artifacts..."
-        $cleanPaths = @("out", $config.solutionStructure.tempDirectory, "$finalSolutionName.zip")
+        $cleanPaths = @("out", $config.solutionStructure.tempDirectory)
+        
+        # Clean solution packages based on naming pattern
+        $packagePatterns = @(
+            "${finalSolutionName}_managed.zip",
+            "${finalSolutionName}_unmanaged.zip",
+            "$finalSolutionName.zip"  # Legacy single package
+        )
+        
+        foreach ($pattern in $packagePatterns) {
+            $cleanPaths += $pattern
+        }
+        
         foreach ($path in $cleanPaths) {
             if (Test-Path $path) { 
                 Remove-Item $path -Recurse -Force 
@@ -296,40 +314,73 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Solution build failed" }
     Write-Success "Solution built successfully"
     
-    # Step 12: Pack solution
-    Write-Info "Packaging solution..."
+    # Step 12: Pack solution(s) based on SolutionType
+    Write-Info "Packaging solution(s) - Type: $finalSolutionType..."
     $buildConfig = $BuildConfiguration.ToLower()
-    $solutionFiles = Get-ChildItem -Path "bin/$BuildConfiguration" -Filter "*.zip" -ErrorAction SilentlyContinue
-    if ($solutionFiles.Count -gt 0) {
-        $sourceSolution = $solutionFiles[0].FullName
-        Copy-Item $sourceSolution "../$finalSolutionName.zip" -Force
-        Write-Success "Solution packaged from build output: $finalSolutionName.zip"
-    } else {
-        # Fallback to manual packing
-        & pac solution pack --zipfile "../$finalSolutionName.zip"
-        if ($LASTEXITCODE -ne 0) { throw "Solution packaging failed" }
-        Write-Success "Solution packaged: $finalSolutionName.zip"
+    $createdPackages = @()
+    
+    if ($finalSolutionType -eq "Unmanaged" -or $finalSolutionType -eq "Both") {
+        Write-Info "Creating unmanaged solution package..."
+        $unmanagedName = "${finalSolutionName}_unmanaged"
+        
+        # Try to find built solution first
+        $solutionFiles = Get-ChildItem -Path "bin/$BuildConfiguration" -Filter "*.zip" -ErrorAction SilentlyContinue
+        if ($solutionFiles.Count -gt 0) {
+            $sourceSolution = $solutionFiles[0].FullName
+            Copy-Item $sourceSolution "../$unmanagedName.zip" -Force
+            Write-Success "Unmanaged solution packaged from build output: $unmanagedName.zip"
+        } else {
+            # Fallback to manual packing
+            & pac solution pack --zipfile "../$unmanagedName.zip"
+            if ($LASTEXITCODE -ne 0) { throw "Unmanaged solution packaging failed" }
+            Write-Success "Unmanaged solution packaged: $unmanagedName.zip"
+        }
+        $createdPackages += "$unmanagedName.zip"
+    }
+    
+    if ($finalSolutionType -eq "Managed" -or $finalSolutionType -eq "Both") {
+        Write-Info "Creating managed solution package..."
+        $managedName = "${finalSolutionName}_managed"
+        
+        # For managed solutions, we need to use pac solution pack with --managed flag
+        & pac solution pack --zipfile "../$managedName.zip" --managed
+        if ($LASTEXITCODE -ne 0) { throw "Managed solution packaging failed" }
+        Write-Success "Managed solution packaged: $managedName.zip"
+        $createdPackages += "$managedName.zip"
     }
     
     # Step 13: Return to root directory
     Set-Location ..
     
     # Step 14: Verify final output and validate
-    if (Test-Path "$finalSolutionName.zip") {
-        $zipSize = (Get-Item "$finalSolutionName.zip").Length
-        $sizeKB = [math]::Round($zipSize/1KB, 2)
+    if ($createdPackages.Count -gt 0) {
+        Write-Success "Build completed successfully!"
+        Write-Info "Created solution packages:"
         
-        # Validate minimum package size
-        $minSize = if ($config.validation.solutionValidation.minPackageSize) { 
-            [int]$config.validation.solutionValidation.minPackageSize 
-        } else { 1024 }
-        
-        if ($zipSize -lt $minSize) {
-            Write-Warning "Solution package size ($sizeKB KB) is smaller than expected minimum ($([math]::Round($minSize/1KB, 2)) KB)"
+        $totalSize = 0
+        foreach ($package in $createdPackages) {
+            if (Test-Path $package) {
+                $zipSize = (Get-Item $package).Length
+                $sizeKB = [math]::Round($zipSize/1KB, 2)
+                $totalSize += $zipSize
+                
+                # Validate minimum package size
+                $minSize = if ($config.validation.solutionValidation.minPackageSize) { 
+                    [int]$config.validation.solutionValidation.minPackageSize 
+                } else { 1024 }
+                
+                if ($zipSize -lt $minSize) {
+                    Write-Warning "Solution package size ($sizeKB KB) is smaller than expected minimum ($([math]::Round($minSize/1KB, 2)) KB) for $package"
+                }
+                
+                Write-Host "  - $package ($sizeKB KB)"
+            } else {
+                Write-Warning "Expected package not found: $package"
+            }
         }
         
-        Write-Success "Build completed successfully!"
-        Write-Info "Solution package: $finalSolutionName.zip ($sizeKB KB)"
+        $totalSizeKB = [math]::Round($totalSize/1KB, 2)
+        Write-Info "Total package size: $totalSizeKB KB"
         
         # List all build outputs
         Write-Info "Build outputs:"
@@ -337,16 +388,24 @@ try {
             Write-Host "  PCF Build Output (out/):"
             Get-ChildItem "out" -Recurse | ForEach-Object { Write-Host "    - $($_.FullName.Replace($PWD, '.'))" }
         }
-        Write-Host "  Solution Package: $finalSolutionName.zip"
+        Write-Host "  Solution Packages:"
+        foreach ($package in $createdPackages) {
+            Write-Host "    - $package"
+        }
         
         # Run post-build script if defined
-        if ($config.scripts.postBuild) {
+        if ($config.scripts.postBuild -and $config.scripts.postBuild.Trim()) {
             Write-Info "Running post-build script..."
-            Invoke-Expression $config.scripts.postBuild
+            try {
+                Invoke-Expression $config.scripts.postBuild
+            }
+            catch {
+                Write-Warning "Post-build script failed: $($_.Exception.Message)"
+            }
         }
         
     } else {
-        throw "Solution package was not created"
+        throw "No solution packages were created"
     }
     
     Write-Success "Build process completed successfully!"
