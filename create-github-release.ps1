@@ -176,6 +176,25 @@ try {
     $displayName = $config.solution.displayName
     $version = $config.solution.version
     
+    # Try to get more current info from package.json if available
+    $packageJsonPath = "../package.json"
+    if (Test-Path $packageJsonPath) {
+        try {
+            $packageJson = Get-Content $packageJsonPath -Raw | ConvertFrom-Json
+            if ($packageJson.version) {
+                $version = $packageJson.version
+                Write-Info "Using version from package.json: $version"
+            }
+            if ($packageJson.name -and -not $displayName) {
+                $displayName = $packageJson.name
+                Write-Info "Using display name from package.json: $displayName"
+            }
+        }
+        catch {
+            Write-Warning "Could not read package.json: $($_.Exception.Message)"
+        }
+    }
+    
     # Build release title and body
     $releaseTitle = if ($config.github.release.titleTemplate) {
         Resolve-Template -Template $config.github.release.titleTemplate -Config $config

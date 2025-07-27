@@ -13,8 +13,10 @@ permissions:
   security-events: write
   actions: read
 
+# These will be updated from package.json during build
 env:
   SOLUTION_NAME: MySolution
+  SOLUTION_VERSION: 1.0.0
   
 jobs:
   build:
@@ -45,6 +47,20 @@ jobs:
         & ".\install-temp.ps1" -Force -SkipSetup
         Remove-Item "install-temp.ps1"
         Write-Host "BuildDataversePCFSolution installed successfully"
+      shell: pwsh
+
+    - name: Extract version from package.json
+      id: package_version
+      run: |
+        $packageJson = Get-Content "package.json" -Raw | ConvertFrom-Json
+        $version = $packageJson.version
+        $name = $packageJson.name
+        Write-Host "Extracted name: $name"
+        Write-Host "Extracted version: $version"
+        echo "version=$version" >> $env:GITHUB_OUTPUT
+        echo "name=$name" >> $env:GITHUB_OUTPUT
+        echo "SOLUTION_VERSION=$version" >> $env:GITHUB_ENV
+        echo "SOLUTION_NAME=$name" >> $env:GITHUB_ENV
       shell: pwsh
         
     - name: Run build script
@@ -83,6 +99,13 @@ jobs:
       actions: read
     
     steps:
+    - name: Debug release job
+      run: |
+        echo "Event name: ${{ github.event_name }}"
+        echo "Ref: ${{ github.ref }}"
+        echo "Ref name: ${{ github.ref_name }}"
+        echo "Is tag: ${{ startsWith(github.ref, 'refs/tags/v') }}"
+    
     - name: Checkout repository
       uses: actions/checkout@v4
       
@@ -108,9 +131,9 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: ${{ github.ref_name }}
-        name: Release ${{ github.ref_name }}
+        name: ${{ env.SOLUTION_NAME }} v${{ env.SOLUTION_VERSION }}
         body: |
-          ## ${{ env.SOLUTION_NAME }} ${{ github.ref_name }}
+          ## ${{ env.SOLUTION_NAME }} v${{ env.SOLUTION_VERSION }}
           
           ### 🚀 What's New
           - Latest features and improvements
@@ -144,12 +167,20 @@ jobs:
   manual-release:
     needs: build
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     permissions:
       contents: write
       actions: read
     
     steps:
+    - name: Debug manual release job
+      run: |
+        echo "Event name: ${{ github.event_name }}"
+        echo "Ref: ${{ github.ref }}"
+        echo "Ref name: ${{ github.ref_name }}"
+        echo "Is main/master: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}"
+        echo "Is workflow_dispatch: ${{ github.event_name == 'workflow_dispatch' }}"
+    
     - name: Checkout repository
       uses: actions/checkout@v4
       
@@ -177,12 +208,13 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: v${{ steps.date.outputs.date }}
-        name: Manual Release v${{ steps.date.outputs.date }}
+        tag_name: v${{ env.SOLUTION_VERSION }}-${{ steps.date.outputs.date }}
+        name: ${{ env.SOLUTION_NAME }} v${{ env.SOLUTION_VERSION }} (Manual Build)
         body: |
-          ## ${{ env.SOLUTION_NAME }} Manual Release
+          ## ${{ env.SOLUTION_NAME }} v${{ env.SOLUTION_VERSION }} - Manual Release
           
           ### 📅 Build Information
+          - **Version**: ${{ env.SOLUTION_VERSION }}
           - **Build Date**: ${{ steps.date.outputs.date }}
           - **Branch**: ${{ github.ref_name }}
           - **Commit**: ${{ github.sha }}
@@ -204,6 +236,87 @@ jobs:
           **Built with automated CI/CD pipeline via manual trigger**
         draft: false
         prerelease: false
+        files: |
+          solutions/*_unmanaged.zip
+          solutions/*_managed.zip
+
+  dev-release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    permissions:
+      contents: write
+      actions: read
+    
+    steps:
+    - name: Debug dev release job
+      run: |
+        echo "Event name: ${{ github.event_name }}"
+        echo "Ref: ${{ github.ref }}"
+        echo "Ref name: ${{ github.ref_name }}"
+        echo "Is main/master push: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') }}"
+    
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Download unmanaged solution
+      uses: actions/download-artifact@v4
+      with:
+        name: unmanaged-solution
+        path: ./solutions/
+        
+    - name: Download managed solution
+      uses: actions/download-artifact@v4
+      with:
+        name: managed-solution
+        path: ./solutions/
+        
+    - name: Get current date and short SHA
+      id: date
+      run: |
+        echo "date=$(date +'%Y.%m.%d.%H%M')" >> "$GITHUB_OUTPUT"
+        echo "sha=$(echo ${{ github.sha }} | cut -c1-7)" >> "$GITHUB_OUTPUT"
+        
+    - name: List downloaded files
+      run: ls -la solutions/
+        
+    - name: Create Development Release
+      uses: softprops/action-gh-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: dev-v${{ env.SOLUTION_VERSION }}-${{ steps.date.outputs.date }}-${{ steps.date.outputs.sha }}
+        name: ${{ env.SOLUTION_NAME }} v${{ env.SOLUTION_VERSION }} (Dev Build ${{ steps.date.outputs.date }})
+        body: |
+          ## ${{ env.SOLUTION_NAME }} v${{ env.SOLUTION_VERSION }} - Development Build
+          
+          ### 📅 Build Information
+          - **Version**: ${{ env.SOLUTION_VERSION }}
+          - **Build Date**: ${{ steps.date.outputs.date }}
+          - **Branch**: ${{ github.ref_name }}
+          - **Commit**: ${{ github.sha }}
+          - **Event**: ${{ github.event_name }}
+          
+          ### ⚠️ Development Release
+          This is an automated development build. Use for testing purposes only.
+          
+          ### 💾 Installation
+          1. Download the solution package for your needs:
+             - **Unmanaged**: For development environments
+             - **Managed**: For production environments
+          2. Import it into your Power Platform environment
+          3. Configure the solution settings as needed
+          4. Add the control to your forms or canvas apps
+          
+          ### 📋 Requirements
+          - Power Platform environment with PCF controls enabled
+          - Appropriate permissions for solution import
+          
+          ---
+          
+          **Built with automated CI/CD pipeline**
+        draft: false
+        prerelease: true
         files: |
           solutions/*_unmanaged.zip
           solutions/*_managed.zip

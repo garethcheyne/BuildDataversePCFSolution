@@ -189,6 +189,23 @@ github:
     owner: "your-username"
     name: "your-repo-name"
 
+### 📋 Version Management
+
+**Version Source Priority:**
+1. **Primary**: `package.json` version field (recommended)
+2. **Fallback**: `solution.yaml` version field 
+
+The build system automatically extracts the version from your PCF control's `package.json` file for consistency. This ensures your GitHub releases, solution packages, and NPM package all use the same version number.
+
+To update your control version:
+```bash
+npm version patch  # 1.0.0 → 1.0.1
+npm version minor  # 1.0.1 → 1.1.0  
+npm version major  # 1.1.0 → 2.0.0
+```
+
+**Release Tags:** Use the format `v{version}` (e.g., `v1.2.3`) for official releases.
+
 # Custom scripts (optional)
 scripts:
   preBuild: |
