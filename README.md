@@ -76,6 +76,7 @@ The setup process automatically adds these convenient npm scripts to your `packa
 | `npm run boom-unmanaged` | Unmanaged solution only | Creates unmanaged solution package |  
 | `npm run boom-check` | Environment validation | Checks if your dev environment is ready |
 | `npm run boom-create` | PCF project creator | Creates new PCF project structure |
+| `npm run boom-upgrade` | Update tool | Checks for and installs latest version |
 
 ## ⚡ Quick Start After Installation
 
@@ -101,6 +102,9 @@ npm run boom-check
 
 # Create new PCF project structure
 npm run boom-create
+
+# Update to latest version
+npm run boom-upgrade
 ```
 
 ### 🔧 Manual PowerShell Commands
@@ -116,6 +120,9 @@ If you prefer direct PowerShell execution:
 
 # Environment check
 .\BuildDataversePCFSolution\environment-check.ps1
+
+# Check for updates
+.\BuildDataversePCFSolution\upgrade-builddataverse.ps1
 ```
 
 ## 📋 What You Get
@@ -260,6 +267,9 @@ npm run boom-check
 
 # Create new PCF project structure
 npm run boom-create
+
+# Update to latest version
+npm run boom-upgrade
 ```
 
 ### PowerShell Direct Commands

@@ -45,6 +45,7 @@ function Add-BoomScriptToPackageJson {
             "boom-unmanaged" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/build-solution.ps1 -BuildConfiguration Release -PackageType Unmanaged"
             "boom-check" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/environment-check.ps1"
             "boom-create" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/create-pcf-project.ps1"
+            "boom-upgrade" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/upgrade-builddataverse.ps1"
         }
         
         $scriptsAdded = 0
@@ -96,6 +97,7 @@ function Add-BoomScriptToPackageJson {
             Write-Host "   -> npm run boom-unmanaged - Build unmanaged solution only" -ForegroundColor Cyan
             Write-Host "   -> npm run boom-check     - Check development environment" -ForegroundColor Cyan
             Write-Host "   -> npm run boom-create    - Create new PCF project" -ForegroundColor Cyan
+            Write-Host "   -> npm run boom-upgrade   - Check for and install updates" -ForegroundColor Cyan
         } else {
             Write-Info "All BuildDataversePCFSolution scripts already exist in package.json"
         }
@@ -380,6 +382,7 @@ function New-PackageJsonFromScratch {
             "boom-unmanaged" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/build-solution.ps1 -BuildConfiguration Release -PackageType Unmanaged"
             "boom-check" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/environment-check.ps1"
             "boom-create" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/create-pcf-project.ps1"
+            "boom-upgrade" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/upgrade-builddataverse.ps1"
         }
         
         $scriptsAdded = 0

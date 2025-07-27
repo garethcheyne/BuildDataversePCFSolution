@@ -55,16 +55,22 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: pcf-control-build
-        path: |
-          out/
-          releases/
+        path: out/
         retention-days: 30
         
-    - name: Upload solution packages
+    - name: Upload unmanaged solution
       uses: actions/upload-artifact@v4
       with:
-        name: solution-packages
-        path: releases/*.zip
+        name: unmanaged-solution
+        path: releases/*_unmanaged.zip
+        retention-days: 90
+        if-no-files-found: warn
+        
+    - name: Upload managed solution
+      uses: actions/upload-artifact@v4
+      with:
+        name: managed-solution  
+        path: releases/*_managed.zip
         retention-days: 90
         if-no-files-found: warn
 
@@ -80,25 +86,31 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       
-    - name: Download solution packages
+    - name: Download unmanaged solution
       uses: actions/download-artifact@v4
       with:
-        name: solution-packages
-        path: ./releases/
+        name: unmanaged-solution
+        path: ./solutions/
+        
+    - name: Download managed solution
+      uses: actions/download-artifact@v4
+      with:
+        name: managed-solution
+        path: ./solutions/
         
     - name: List downloaded files
-      run: ls -la releases/
+      run: ls -la solutions/
         
     - name: Create Release
       id: create_release
-      uses: actions/create-release@v1
+      uses: softprops/action-gh-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
+        tag_name: ${{ github.ref_name }}
+        name: Release ${{ github.ref_name }}
         body: |
-          ## ${{ env.SOLUTION_NAME }} ${{ github.ref }}
+          ## ${{ env.SOLUTION_NAME }} ${{ github.ref_name }}
           
           ### 🚀 What's New
           - Latest features and improvements
@@ -125,26 +137,76 @@ jobs:
           **Built with automated CI/CD pipeline**
         draft: false
         prerelease: false
+        files: |
+          solutions/*_unmanaged.zip
+          solutions/*_managed.zip
 
-    - name: Upload Unmanaged Solution
-      run: |
-        UNMANAGED_FILE=$(find ./releases/ -name "*_unmanaged.zip" | head -1)
-        if [ -n "$UNMANAGED_FILE" ]; then
-          curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-               -H "Content-Type: application/zip" \
-               --data-binary @"$UNMANAGED_FILE" \
-               "${{ steps.create_release.outputs.upload_url }}?name=${{ env.SOLUTION_NAME }}_unmanaged.zip&label=Unmanaged Solution"
-        fi
-
-    - name: Upload Managed Solution
-      run: |
-        MANAGED_FILE=$(find ./releases/ -name "*_managed.zip" | head -1)
-        if [ -n "$MANAGED_FILE" ]; then
-          curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-               -H "Content-Type: application/zip" \
-               --data-binary @"$MANAGED_FILE" \
-               "${{ steps.create_release.outputs.upload_url }}?name=${{ env.SOLUTION_NAME }}_managed.zip&label=Managed Solution"
-        fi
+  manual-release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+      actions: read
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Download unmanaged solution
+      uses: actions/download-artifact@v4
+      with:
+        name: unmanaged-solution
+        path: ./solutions/
+        
+    - name: Download managed solution
+      uses: actions/download-artifact@v4
+      with:
+        name: managed-solution
+        path: ./solutions/
+        
+    - name: Get current date
+      id: date
+      run: echo "date=$(date +'%Y.%m.%d.%H%M')" >> "$GITHUB_OUTPUT"
+        
+    - name: List downloaded files
+      run: ls -la solutions/
+        
+    - name: Create Manual Release
+      uses: softprops/action-gh-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ steps.date.outputs.date }}
+        name: Manual Release v${{ steps.date.outputs.date }}
+        body: |
+          ## ${{ env.SOLUTION_NAME }} Manual Release
+          
+          ### 📅 Build Information
+          - **Build Date**: ${{ steps.date.outputs.date }}
+          - **Branch**: ${{ github.ref_name }}
+          - **Commit**: ${{ github.sha }}
+          
+          ### 💾 Installation
+          1. Download the solution package for your needs:
+             - **Unmanaged**: For development environments
+             - **Managed**: For production environments
+          2. Import it into your Power Platform environment
+          3. Configure the solution settings as needed
+          4. Add the control to your forms or canvas apps
+          
+          ### 📋 Requirements
+          - Power Platform environment with PCF controls enabled
+          - Appropriate permissions for solution import
+          
+          ---
+          
+          **Built with automated CI/CD pipeline via manual trigger**
+        draft: false
+        prerelease: false
+        files: |
+          solutions/*_unmanaged.zip
+          solutions/*_managed.zip
 
   security-scan:
     runs-on: ubuntu-latest
