@@ -85,7 +85,7 @@ stages:
           
           # Check for expected outputs
           $outPath = Join-Path (Get-Location) "out"
-          $solutionZip = "$(SOLUTION_NAME).zip"
+          $releasesPath = Join-Path (Get-Location) "releases"
           
           if (Test-Path $outPath) {
             Write-Host "✅ PCF output directory found: $outPath"
@@ -95,11 +95,14 @@ stages:
             exit 1
           }
           
-          if (Test-Path $solutionZip) {
-            $solutionSize = (Get-Item $solutionZip).Length
-            Write-Host "✅ Solution package found: $solutionZip ($([math]::Round($solutionSize/1024, 2)) KB)"
+          if (Test-Path $releasesPath) {
+            Write-Host "✅ Solution packages directory found: $releasesPath"
+            Get-ChildItem $releasesPath -Filter "*.zip" | ForEach-Object { 
+              $solutionSize = $_.Length
+              Write-Host "  - $($_.Name) ($([math]::Round($solutionSize/1024, 2)) KB)"
+            }
           } else {
-            Write-Error "❌ Solution package not found: $solutionZip"
+            Write-Error "❌ Solution packages directory not found: $releasesPath"
             exit 1
           }
         pwsh: true
@@ -114,10 +117,10 @@ stages:
       condition: always()
     
     - task: PublishBuildArtifacts@1
-      displayName: 'Publish Solution Package'
+      displayName: 'Publish Solution Packages'
       inputs:
-        PathtoPublish: '$(SOLUTION_NAME).zip'
-        ArtifactName: 'solution-package'
+        PathtoPublish: 'releases'
+        ArtifactName: 'solution-packages'
         publishLocation: 'Container'
 
 - stage: Release
@@ -139,8 +142,8 @@ stages:
             displayName: 'Checkout for Release'
           
           - download: current
-            artifact: solution-package
-            displayName: 'Download Solution Package'
+            artifact: solution-packages
+            displayName: 'Download Solution Packages'
           
           - task: PowerShell@2
             displayName: 'Install GitHub CLI'
@@ -216,10 +219,23 @@ stages:
                 # Change to source directory where BuildDataverseSolution is located
                 Set-Location "$(Build.SourcesDirectory)"
                 
-                # Execute the GitHub release script
+                # Find the solution packages in the downloaded artifacts
+                $solutionPackagesPath = "$(Pipeline.Workspace)/solution-packages"
+                Write-Host "Looking for solution packages in: $solutionPackagesPath"
+                
+                if (Test-Path $solutionPackagesPath) {
+                  Get-ChildItem $solutionPackagesPath -Filter "*.zip" | ForEach-Object {
+                    Write-Host "Found solution package: $($_.Name)"
+                  }
+                } else {
+                  Write-Error "Solution packages path not found: $solutionPackagesPath"
+                  exit 1
+                }
+                
+                # Execute the GitHub release script with the solution packages directory
                 $releaseResult = .\BuildDataverseSolution\create-github-release.ps1 `
                   -TagName "$(TAG_NAME)" `
-                  -ArtifactPath "$(Pipeline.Workspace)/solution-package/$(SOLUTION_NAME).zip" `
+                  -ArtifactPath "$solutionPackagesPath" `
                   -GitHubToken "$(GITHUB_TOKEN)"
                 
                 if ($releaseResult -eq 0) {

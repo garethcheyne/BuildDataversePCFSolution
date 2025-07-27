@@ -10,7 +10,7 @@
 .PARAMETER TagName
     Git tag name for the release (required)
 .PARAMETER ArtifactPath
-    Path to the solution package to upload (required)
+    Path to the solution package(s) to upload - can be a file or directory containing .zip files (required)
 .PARAMETER GitHubToken
     GitHub personal access token (can also be set via GITHUB_TOKEN environment variable)
 .PARAMETER Repository
@@ -119,7 +119,26 @@ try {
     
     # Validate artifact path
     if (-not (Test-Path $ArtifactPath)) {
-        throw "Artifact file not found: $ArtifactPath"
+        throw "Artifact path not found: $ArtifactPath"
+    }
+    
+    # Determine if ArtifactPath is a file or directory and collect all .zip files
+    $artifactFiles = @()
+    if (Test-Path $ArtifactPath -PathType Container) {
+        # It's a directory, find all .zip files
+        $zipFiles = Get-ChildItem -Path $ArtifactPath -Filter "*.zip"
+        if ($zipFiles.Count -eq 0) {
+            throw "No .zip files found in directory: $ArtifactPath"
+        }
+        $artifactFiles = $zipFiles.FullName
+        Write-Info "Found $($zipFiles.Count) solution package(s) in directory"
+    } else {
+        # It's a single file
+        if (-not $ArtifactPath.EndsWith(".zip")) {
+            throw "Artifact file must be a .zip file: $ArtifactPath"
+        }
+        $artifactFiles = @($ArtifactPath)
+        Write-Info "Using single solution package file"
     }
     
     # Load configuration
@@ -171,7 +190,9 @@ try {
 ## $displayName $TagName
 
 ### 💾 Installation
-1. Download the ``$solutionName.zip`` file
+1. Download the appropriate solution package:
+   - **Managed** (``*_managed.zip``): For production environments
+   - **Unmanaged** (``*_unmanaged.zip``): For development environments
 2. Import it into your Power Platform environment
 
 ### 📋 Requirements
@@ -213,11 +234,17 @@ try {
     Write-Info "Repository: $Repository"
     Write-Info "Tag: $TagName"
     Write-Info "Title: $releaseTitle"
-    Write-Info "Artifact: $ArtifactPath"
+    Write-Info "Artifacts: $($artifactFiles -join ', ')"
     
     $createArgs = @(
-        "release", "create", $TagName,
-        $ArtifactPath,
+        "release", "create", $TagName
+    )
+    
+    # Add all artifact files
+    $createArgs += $artifactFiles
+    
+    # Add repository and metadata
+    $createArgs += @(
         "--repo", $Repository,
         "--title", $releaseTitle,
         "--notes", $releaseBody

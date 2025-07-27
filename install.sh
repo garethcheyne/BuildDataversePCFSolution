@@ -96,8 +96,18 @@ install_builddataversesolution() {
     local files=(
         "setup-project.ps1"
         "build-solution.ps1"
+        "environment-check.ps1"
+        "create-pcf-project.ps1"
         "README.md"
         "GETTING-STARTED.md"
+        "solution-template.yaml"
+        "templates/github/build-and-release.yml"
+        "templates/github/README.md"
+        "templates/devops/azure-pipelines.yml"
+        "templates/devops/README.md"
+        "templates/TROUBLESHOOTING.md"
+        "examples/basic-pcf.yaml"
+        "examples/advanced-pcf.yaml"
     )
     
     local downloaded_files=0

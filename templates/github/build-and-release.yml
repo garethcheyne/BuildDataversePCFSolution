@@ -43,15 +43,16 @@ jobs:
         name: pcf-control-build
         path: |
           out/
-          ${{ env.SOLUTION_NAME }}.zip
+          releases/
         retention-days: 30
         
-    - name: Upload solution artifact
+    - name: Upload solution packages
       uses: actions/upload-artifact@v4
       with:
-        name: solution-package
-        path: ${{ env.SOLUTION_NAME }}.zip
+        name: solution-packages
+        path: releases/*.zip
         retention-days: 90
+        if-no-files-found: warn
 
   release:
     needs: build
@@ -62,10 +63,14 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       
-    - name: Download solution artifact
+    - name: Download solution packages
       uses: actions/download-artifact@v4
       with:
-        name: solution-package
+        name: solution-packages
+        path: ./releases/
+        
+    - name: List downloaded files
+      run: ls -la releases/
         
     - name: Create Release
       id: create_release
@@ -85,7 +90,9 @@ jobs:
           - Improved accessibility and performance
           
           ### 💾 Installation
-          1. Download the `${{ env.SOLUTION_NAME }}.zip` file
+          1. Download the solution package for your needs:
+             - **Unmanaged**: For development environments
+             - **Managed**: For production environments
           2. Import it into your Power Platform environment
           3. Configure your Google Places API key
           4. Add the control to your forms or canvas apps
@@ -103,16 +110,26 @@ jobs:
           **Full Changelog**: https://github.com/garethcheyne/PCF-FluentUi-AutoComplete-GooglePlaces/compare/v1.0.0...${{ github.ref }}
         draft: false
         prerelease: false
-        
-    - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./${{ env.SOLUTION_NAME }}.zip
-        asset_name: ${{ env.SOLUTION_NAME }}.zip
-        asset_content_type: application/zip
+
+    - name: Upload Unmanaged Solution
+      run: |
+        UNMANAGED_FILE=$(find ./releases/ -name "*_unmanaged.zip" | head -1)
+        if [ -n "$UNMANAGED_FILE" ]; then
+          curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+               -H "Content-Type: application/zip" \
+               --data-binary @"$UNMANAGED_FILE" \
+               "${{ steps.create_release.outputs.upload_url }}?name=${{ env.SOLUTION_NAME }}_unmanaged.zip&label=Unmanaged Solution"
+        fi
+
+    - name: Upload Managed Solution
+      run: |
+        MANAGED_FILE=$(find ./releases/ -name "*_managed.zip" | head -1)
+        if [ -n "$MANAGED_FILE" ]; then
+          curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+               -H "Content-Type: application/zip" \
+               --data-binary @"$MANAGED_FILE" \
+               "${{ steps.create_release.outputs.upload_url }}?name=${{ env.SOLUTION_NAME }}_managed.zip&label=Managed Solution"
+        fi
 
   security-scan:
     runs-on: ubuntu-latest

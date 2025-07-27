@@ -22,10 +22,10 @@ curl -fsSL https://raw.githubusercontent.com/garethcheyne/BuildDataversePCFSolut
 
 ```powershell
 # Force reinstall (if already installed)
-irm https://raw.githubusercontent.com/garethcheyne/BuildDataversePCFSolution/main/install.ps1 | iex -Args "--force"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/garethcheyne/BuildDataversePCFSolution/main/install.ps1" -OutFile "install-temp.ps1"; & ".\install-temp.ps1" -Force; Remove-Item "install-temp.ps1"
 
 # Skip interactive setup
-irm https://raw.githubusercontent.com/garethcheyne/BuildDataversePCFSolution/main/install.ps1 | iex -Args "--skip-setup"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/garethcheyne/BuildDataversePCFSolution/main/install.ps1" -OutFile "install-temp.ps1"; & ".\install-temp.ps1" -SkipSetup; Remove-Item "install-temp.ps1"
 ```
 
 ### Option 2: Manual Installation

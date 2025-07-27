@@ -124,7 +124,15 @@ function Install-BuildDataversePCFSolution {
         @{ Source = "environment-check.ps1"; Dest = "environment-check.ps1" },
         @{ Source = "create-pcf-project.ps1"; Dest = "create-pcf-project.ps1" },
         @{ Source = "README.md"; Dest = "README.md" },
-        @{ Source = "GETTING-STARTED.md"; Dest = "GETTING-STARTED.md" }
+        @{ Source = "GETTING-STARTED.md"; Dest = "GETTING-STARTED.md" },
+        @{ Source = "solution-template.yaml"; Dest = "solution-template.yaml" },
+        @{ Source = "templates/github/build-and-release.yml"; Dest = "templates/github/build-and-release.yml" },
+        @{ Source = "templates/github/README.md"; Dest = "templates/github/README.md" },
+        @{ Source = "templates/devops/azure-pipelines.yml"; Dest = "templates/devops/azure-pipelines.yml" },
+        @{ Source = "templates/devops/README.md"; Dest = "templates/devops/README.md" },
+        @{ Source = "templates/TROUBLESHOOTING.md"; Dest = "templates/TROUBLESHOOTING.md" },
+        @{ Source = "examples/basic-pcf.yaml"; Dest = "examples/basic-pcf.yaml" },
+        @{ Source = "examples/advanced-pcf.yaml"; Dest = "examples/advanced-pcf.yaml" }
     )
     
     $downloadedFiles = 0
