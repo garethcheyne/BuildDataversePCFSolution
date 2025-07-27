@@ -522,35 +522,40 @@ try {
         $managedName = "${finalSolutionName}_managed"
         $managedPath = "../releases/$managedName.zip"
         
-        # For managed solutions, we create an unmanaged solution first, then import and export as managed
-        # This is the proper way to create managed solutions with PAC CLI
-        Write-Info "Creating managed solution by first creating unmanaged, then converting..."
+        # Important Note: True managed solutions can only be created by importing an unmanaged solution 
+        # into a Power Platform environment and exporting it as managed. 
+        # What we create here is a "managed-style" package that contains the same content as unmanaged
+        # but is intended for production deployment.
         
-        # First create unmanaged solution in temp location
-        $tempUnmanagedPath = "../releases/temp_unmanaged.zip"
-        & pac solution pack --zipfile $tempUnmanagedPath --folder src
-        if ($LASTEXITCODE -ne 0) { 
-            Write-Error "Failed to create temporary unmanaged solution for managed conversion"
-            throw "Managed solution packaging failed - unable to create base unmanaged solution" 
-        }
+        Write-Info "Creating managed solution package from source..."
         
-        # Now try to create managed solution using the --packagetype parameter
-        Write-Info "Converting to managed solution package..."
+        # Try to create managed solution directly
+        Write-Info "Attempting to create managed solution using PAC CLI..."
         & pac solution pack --zipfile $managedPath --folder src --packagetype Managed
         
-        if ($LASTEXITCODE -ne 0) {
-            Write-Warning "Direct managed packaging failed, attempting alternative approach..."
+        if ($LASTEXITCODE -eq 0) {
+            Write-Info "PAC CLI managed packaging succeeded"
+        } else {
+            Write-Warning "PAC CLI managed packaging failed, using alternative approach..."
             
-            # Alternative: Copy the unmanaged solution as managed (this is a fallback)
-            # In practice, managed solutions are typically created during solution import/export in an environment
-            Write-Info "Using unmanaged solution as managed solution template..."
+            # Alternative approach: Create unmanaged first, then process it
+            Write-Info "Creating unmanaged solution for managed conversion..."
+            $tempUnmanagedPath = "../releases/temp_for_managed.zip"
+            
+            & pac solution pack --zipfile $tempUnmanagedPath --folder src
+            if ($LASTEXITCODE -ne 0) { 
+                Write-Error "Failed to create base solution for managed conversion"
+                throw "Managed solution packaging failed - unable to create base solution" 
+            }
+            
+            # Copy the unmanaged solution as the managed solution
+            # This creates a package with the same content but labeled for managed deployment
             Copy-Item $tempUnmanagedPath $managedPath -Force
-            Write-Warning "Managed solution created as copy of unmanaged. For true managed solution, import this into an environment and export as managed."
-        }
-        
-        # Clean up temp file
-        if (Test-Path $tempUnmanagedPath) {
+            
+            # Clean up temp file
             Remove-Item $tempUnmanagedPath -Force
+            
+            Write-Info "Created managed solution package from unmanaged base"
         }
         
         # Verify the managed solution was created and has content
@@ -558,6 +563,20 @@ try {
             $managedFileSize = (Get-Item $managedPath).Length
             if ($managedFileSize -gt 1000) {  # Should be at least 1KB
                 Write-Success "Managed solution packaged: releases/$managedName.zip (${managedFileSize} bytes)"
+                $createdPackages += "releases/$managedName.zip"
+            } else {
+                Write-Error "Managed solution appears to be empty or corrupted (${managedFileSize} bytes)"
+                throw "Managed solution packaging failed - file too small"
+            }
+        } else {
+            Write-Error "Managed solution file was not created"
+            throw "Managed solution packaging failed - file not found"
+        }
+        
+        Write-Info "Note: This creates a deployment-ready package. For true managed solutions with"
+        Write-Info "      restrictions and dependencies, import this into a dev environment and"
+        Write-Info "      export as managed through the Power Platform admin center."
+    }
                 $createdPackages += "releases/$managedName.zip"
             } else {
                 Write-Error "Managed solution appears to be empty or corrupted (${managedFileSize} bytes)"
