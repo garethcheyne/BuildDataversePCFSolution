@@ -4,7 +4,7 @@
 set -e
 
 # Version information
-BUILDSOLUTION_VERSION="1.0.0"
+BUILDSOLUTION_VERSION="2025.07.27.01"
 BUILDSOLUTION_REPO="https://github.com/garethcheyne/BuildDataversePCFSolution.git"
 BUILDSOLUTION_RAW_URL="https://raw.githubusercontent.com/garethcheyne/BuildDataversePCFSolution/main"h
 # BuildDataverseSolution Installation Script for Unix/Linux/macOS
