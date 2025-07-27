@@ -5,7 +5,7 @@
 set -e
 
 # Version information
-BUILDSOLUTION_VERSION="1.0.0"
+BUILDSOLUTION_VERSION="2025.07.27.00"
 BUILDSOLUTION_REPO="https://github.com/garethcheyne/BuildDataverseSolution.git"
 BUILDSOLUTION_RAW_URL="https://raw.githubusercontent.com/garethcheyne/BuildDataverseSolution/main"
 
