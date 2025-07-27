@@ -83,9 +83,9 @@ function Add-BoomScriptToPackageJson {
         
         $jsonOutput = $beautifiedLines -join "`r`n"
         
-        # Ensure proper line endings and save
-        $jsonOutput | Set-Content -Path $packageJsonPath -Encoding UTF8 -NoNewline
-        Add-Content -Path $packageJsonPath -Value "`r`n" -Encoding UTF8 -NoNewline
+        # Save without BOM to prevent encoding issues
+        $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+        [System.IO.File]::WriteAllText($packageJsonPath, $jsonOutput + "`r`n", $utf8NoBom)
         
         if ($scriptsAdded -gt 0) {
             Write-Success "Added $scriptsAdded BuildDataversePCFSolution scripts to package.json"
@@ -280,14 +280,167 @@ function Update-PackageJsonVersion {
         $replacement = "`${1}$NewVersion`${2}"
         $updatedContent = $content -replace $pattern, $replacement
         
-        # Write back to file
-        Set-Content -Path $packageJsonPath -Value $updatedContent -NoNewline
+        # Write back to file without BOM to prevent encoding issues
+        $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+        [System.IO.File]::WriteAllText($packageJsonPath, $updatedContent, $utf8NoBom)
         
         Write-Success "Updated package.json version to $NewVersion"
         return $true
     }
     catch {
         Write-Error "Failed to update package.json version: $($_.Exception.Message)"
+        return $false
+    }
+}
+
+# Function to remove BOM from a file
+function Remove-BomFromFile {
+    param(
+        [string]$FilePath
+    )
+    
+    if (-not (Test-Path $FilePath)) {
+        Write-Warning "File not found: $FilePath"
+        return $false
+    }
+    
+    try {
+        # Read file content as bytes
+        $bytes = [System.IO.File]::ReadAllBytes($FilePath)
+        
+        # Check if file starts with UTF-8 BOM (EF BB BF)
+        if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) {
+            Write-Info "Removing BOM from $([System.IO.Path]::GetFileName($FilePath))"
+            
+            # Remove BOM by skipping first 3 bytes
+            $contentWithoutBom = $bytes[3..($bytes.Length - 1)]
+            
+            # Write back without BOM
+            [System.IO.File]::WriteAllBytes($FilePath, $contentWithoutBom)
+            return $true
+        }
+        
+        return $false
+    }
+    catch {
+        Write-Error "Failed to remove BOM from $FilePath`: $($_.Exception.Message)"
+        return $false
+    }
+}
+
+# Function to recreate package.json from scratch without BOM
+function New-PackageJsonFromScratch {
+    param(
+        [string]$ProjectPath,
+        [string]$SolutionName
+    )
+    
+    $packageJsonPath = Join-Path $ProjectPath "package.json"
+    
+    if (-not (Test-Path $packageJsonPath)) {
+        Write-Warning "package.json not found at $packageJsonPath"
+        return $false
+    }
+    
+    try {
+        Write-Info "Recreating package.json from scratch to remove BOM issues..."
+        
+        # Read current content and parse as JSON
+        $currentContent = Get-Content $packageJsonPath -Raw | ConvertFrom-Json
+        
+        # Create a clean package.json structure
+        $cleanPackage = [ordered]@{}
+        
+        # Copy properties in a specific order for consistency
+        $propertyOrder = @('name', 'version', 'description', 'main', 'scripts', 'keywords', 'author', 'license', 'dependencies', 'devDependencies', 'peerDependencies')
+        
+        foreach ($prop in $propertyOrder) {
+            if ($currentContent.PSObject.Properties.Name -contains $prop) {
+                $cleanPackage[$prop] = $currentContent.$prop
+            }
+        }
+        
+        # Add any remaining properties not in the standard order
+        foreach ($prop in $currentContent.PSObject.Properties.Name) {
+            if ($prop -notin $propertyOrder) {
+                $cleanPackage[$prop] = $currentContent.$prop
+            }
+        }
+        
+        # Ensure scripts section exists
+        if (-not $cleanPackage.scripts) {
+            $cleanPackage.scripts = [ordered]@{}
+        }
+        
+        # Add BuildDataversePCFSolution scripts
+        $scriptsToAdd = [ordered]@{
+            "boom" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/build-solution.ps1 -BuildConfiguration Release"
+            "boom-debug" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/build-solution.ps1 -BuildConfiguration Debug"
+            "boom-managed" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/build-solution.ps1 -BuildConfiguration Release -PackageType Managed"
+            "boom-unmanaged" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/build-solution.ps1 -BuildConfiguration Release -PackageType Unmanaged"
+            "boom-check" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/environment-check.ps1"
+            "boom-create" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/create-pcf-project.ps1"
+        }
+        
+        $scriptsAdded = 0
+        foreach ($scriptName in $scriptsToAdd.Keys) {
+            if (-not $cleanPackage.scripts.$scriptName) {
+                $cleanPackage.scripts[$scriptName] = $scriptsToAdd[$scriptName]
+                $scriptsAdded++
+            }
+        }
+        
+        # Convert to JSON with proper formatting
+        $jsonOutput = $cleanPackage | ConvertTo-Json -Depth 100
+        
+        # Create properly beautified JSON with consistent tab indentation
+        $lines = $jsonOutput -split "`r?`n"
+        $beautifiedLines = @()
+        $indentLevel = 0
+        
+        foreach ($line in $lines) {
+            $trimmedLine = $line.Trim()
+            
+            # Decrease indent for closing braces/brackets
+            if ($trimmedLine -match '^[}\]]') {
+                $indentLevel = [Math]::Max(0, $indentLevel - 1)
+            }
+            
+            # Add proper tab indentation
+            $indent = "`t" * $indentLevel
+            $beautifiedLines += "$indent$trimmedLine"
+            
+            # Increase indent for opening braces/brackets
+            if ($trimmedLine -match '[{[]$') {
+                $indentLevel++
+            }
+        }
+        
+        $jsonOutput = $beautifiedLines -join "`r`n"
+        
+        # Delete the old file
+        Remove-Item $packageJsonPath -Force
+        
+        # Create new file without BOM
+        $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+        [System.IO.File]::WriteAllText($packageJsonPath, $jsonOutput + "`r`n", $utf8NoBom)
+        
+        Write-Success "Successfully recreated package.json without BOM"
+        if ($scriptsAdded -gt 0) {
+            Write-Success "Added $scriptsAdded BuildDataversePCFSolution scripts to package.json"
+            Write-Host "   Available scripts:" -ForegroundColor DarkGray
+            Write-Host "   -> npm run boom           - Quick Release build" -ForegroundColor Cyan
+            Write-Host "   -> npm run boom-debug     - Quick Debug build" -ForegroundColor Cyan  
+            Write-Host "   -> npm run boom-managed   - Build managed solution only" -ForegroundColor Cyan
+            Write-Host "   -> npm run boom-unmanaged - Build unmanaged solution only" -ForegroundColor Cyan
+            Write-Host "   -> npm run boom-check     - Check development environment" -ForegroundColor Cyan
+            Write-Host "   -> npm run boom-create    - Create new PCF project" -ForegroundColor Cyan
+        }
+        
+        return $true
+    }
+    catch {
+        Write-Error "Failed to recreate package.json: $($_.Exception.Message)"
         return $false
     }
 }
@@ -922,7 +1075,23 @@ logging:
     Write-Host "===============================================================" -ForegroundColor DarkCyan
     Write-Host ""
     
+    # First, try to remove any existing BOM from package.json
+    $packageJsonPath = Join-Path $ProjectPath "package.json"
+    if (Test-Path $packageJsonPath) {
+        $bomRemoved = Remove-BomFromFile -FilePath $packageJsonPath
+        if ($bomRemoved) {
+            Write-Info "Removed BOM from existing package.json"
+        }
+    }
+    
     $boomScriptAdded = Add-BoomScriptToPackageJson -ProjectPath $ProjectPath -SolutionName $solutionName
+    
+    # If the normal function failed (possibly due to BOM issues), try recreating from scratch
+    if (-not $boomScriptAdded) {
+        Write-Info "Standard update failed, attempting to recreate package.json from scratch..."
+        $boomScriptAdded = New-PackageJsonFromScratch -ProjectPath $ProjectPath -SolutionName $solutionName
+    }
+    
     if ($boomScriptAdded) {
         Write-Host "SUCCESS: " -NoNewline -ForegroundColor Green
         Write-Host "Added 'boom' script for quick building!" -ForegroundColor Green

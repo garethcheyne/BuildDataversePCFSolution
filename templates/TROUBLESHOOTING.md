@@ -292,6 +292,8 @@ Test your configuration locally before committing:
    - Use absolute paths where possible
    - Verify working directory in scripts
 
+**Note:** BOM (Byte Order Mark) issues with `package.json` are automatically handled by the setup script. The setup process includes built-in BOM detection and removal to ensure clean JSON files.
+
 ### Platform-Specific Issues
 
 #### GitHub Actions
