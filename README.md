@@ -1,4 +1,4 @@
-# BuildDataverseSolution - PCF CI/CD System
+# Build Dataverse PCF Solution - PCF CI/CD System
 
 **A complete, reusable CI/CD system for PowerApps Component Framework (PCF) controls.**
 
@@ -9,23 +9,23 @@
 **Windows (PowerShell):**
 
 ```powershell
-irm https://raw.githubusercontent.com/garethcheyne/BuildDataverseSolution/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/garethcheyne/BuildDataversePCFSolution/main/install.ps1 | iex
 ```
 
 **macOS/Linux (Bash):**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/garethcheyne/BuildDataverseSolution/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/garethcheyne/BuildDataversePCFSolution/main/install.sh | bash
 ```
 
 **With options:**
 
 ```powershell
 # Force reinstall (if already installed)
-irm https://raw.githubusercontent.com/garethcheyne/BuildDataverseSolution/main/install.ps1 | iex -Args "--force"
+irm https://raw.githubusercontent.com/garethcheyne/BuildDataversePCFSolution/main/install.ps1 | iex -Args "--force"
 
 # Skip interactive setup
-irm https://raw.githubusercontent.com/garethcheyne/BuildDataverseSolution/main/install.ps1 | iex -Args "--skip-setup"
+irm https://raw.githubusercontent.com/garethcheyne/BuildDataversePCFSolution/main/install.ps1 | iex -Args "--skip-setup"
 ```
 
 ### Option 2: Manual Installation
@@ -34,13 +34,13 @@ irm https://raw.githubusercontent.com/garethcheyne/BuildDataverseSolution/main/i
 
    ```powershell
    # Windows
-   Invoke-WebRequest -Uri "https://raw.githubusercontent.com/garethcheyne/BuildDataverseSolution/main/install.ps1" -OutFile "install.ps1"
+   Invoke-WebRequest -Uri "https://raw.githubusercontent.com/garethcheyne/BuildDataversePCFSolution/main/install.ps1" -OutFile "install.ps1"
    .\install.ps1
    ```
 
    ```bash
    # macOS/Linux
-   curl -O https://raw.githubusercontent.com/garethcheyne/BuildDataverseSolution/main/install.sh
+   curl -O https://raw.githubusercontent.com/garethcheyne/BuildDataversePCFSolution/main/install.sh
    chmod +x install.sh
    ./install.sh
    ```
@@ -48,10 +48,10 @@ irm https://raw.githubusercontent.com/garethcheyne/BuildDataverseSolution/main/i
 2. **Clone the repository:**
 
    ```bash
-   git clone https://github.com/garethcheyne/BuildDataverseSolution.git
+   git clone https://github.com/garethcheyne/BuildDataversePCFSolution.git
    cd YourPCFProject
-   cp -r ../BuildDataverseSolution/BuildDataverseSolution .
-   .\BuildDataverseSolution\setup-project.ps1
+   cp -r ../BuildDataversePCFSolution/BuildDataversePCFSolution .
+   .\BuildDataversePCFSolution\setup-project.ps1
    ```
 
 ## 🎯 What Happens During Install
@@ -59,7 +59,7 @@ irm https://raw.githubusercontent.com/garethcheyne/BuildDataverseSolution/main/i
 The installer will:
 
 1. ✅ **Validate** your PCF project structure
-2. ✅ **Download** the latest BuildDataverseSolution files
+2. ✅ **Download** the latest BuildDataversePCFSolution files
 3. ✅ **Check for updates** if already installed
 4. ✅ **Run interactive setup** to configure your project
 5. ✅ **Add npm boom script** for quick building (`npm run boom`)
@@ -73,10 +73,10 @@ Once installed, you can:
 npm run boom
 
 # Manual build
-.\BuildDataverseSolution\build-solution.ps1
+.\BuildDataversePCFSolution\build-solution.ps1
 
 # Reconfigure your project
-.\BuildDataverseSolution\setup-project.ps1
+.\BuildDataversePCFSolution\setup-project.ps1
 ```
 
 ## 📋 What You Get
@@ -93,7 +93,7 @@ npm run boom
 ```
 YourPCFProject/
 ├── solution.yaml              # Your project configuration (auto-generated)
-├── BuildDataverseSolution/    # The build system (copy this directory)
+├── BuildDataversePCFSolution/    # The build system (copy this directory)
 │   ├── README.md             # This file
 │   ├── setup-project.ps1     # Automated setup script
 │   ├── build-solution.ps1    # Main build script
@@ -157,13 +157,13 @@ Always test locally before pushing to CI/CD:
 
 ```powershell
 # Test your build locally
-.\BuildDataverseSolution\build-solution.ps1 -BuildConfiguration "Debug"
+.\BuildDataversePCFSolution\build-solution.ps1 -BuildConfiguration "Debug"
 
 # Test with custom solution name
-.\BuildDataverseSolution\build-solution.ps1 -SolutionName "TestSolution"
+.\BuildDataversePCFSolution\build-solution.ps1 -SolutionName "TestSolution"
 
 # Verbose output for debugging
-.\BuildDataverseSolution\build-solution.ps1 -Verbose
+.\BuildDataversePCFSolution\build-solution.ps1 -Verbose
 ```
 
 ## 🚦 Step-by-Step Deployment Guide
@@ -204,19 +204,19 @@ Always test locally before pushing to CI/CD:
 
 ```powershell
 # Setup new project
-.\BuildDataverseSolution\setup-project.ps1
+.\BuildDataversePCFSolution\setup-project.ps1
 
 # Local debug build
-.\BuildDataverseSolution\build-solution.ps1 -BuildConfiguration "Debug"
+.\BuildDataversePCFSolution\build-solution.ps1 -BuildConfiguration "Debug"
 
 # Local release build
-.\BuildDataverseSolution\build-solution.ps1 -BuildConfiguration "Release"
+.\BuildDataversePCFSolution\build-solution.ps1 -BuildConfiguration "Release"
 
 # Test configuration only
-.\BuildDataverseSolution\build-solution.ps1 -WhatIf
+.\BuildDataversePCFSolution\build-solution.ps1 -WhatIf
 
 # Create GitHub release (manual)
-.\BuildDataverseSolution\create-github-release.ps1 -TagName "v1.0.0" -ArtifactPath "MySolution.zip"
+.\BuildDataversePCFSolution\create-github-release.ps1 -TagName "v1.0.0" -ArtifactPath "MySolution.zip"
 ```
 
 ## 🆘 Troubleshooting
@@ -243,4 +243,4 @@ You'll know everything is working when:
 
 ---
 
-**Ready to get started?** Run `.\BuildDataverseSolution\setup-project.ps1` and follow the prompts!
+**Ready to get started?** Run `.\BuildDataversePCFSolution\setup-project.ps1` and follow the prompts!
