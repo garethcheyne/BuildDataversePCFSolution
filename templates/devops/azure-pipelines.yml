@@ -5,312 +5,312 @@
 trigger:
   branches:
     include:
-    - main
-    - master
+      - main
+      - master
   tags:
     include:
-    - v*
+      - v*
 
 pr:
   branches:
     include:
-    - main
-    - master
+      - main
+      - master
 
 variables:
   # These will be overridden by solution.yaml configuration
-  SOLUTION_NAME: 'MySolution'
-  BUILD_CONFIGURATION: 'Release'
+  SOLUTION_NAME: "MySolution"
+  BUILD_CONFIGURATION: "Release"
   # Agent specification
-  vmImageName: 'windows-latest'
+  vmImageName: "windows-latest"
 
 stages:
-- stage: Build
-  displayName: 'Build PCF Solution'
-  jobs:
-  - job: BuildPCF
-    displayName: 'Build PCF Control and Solution'
-    pool:
-      vmImage: $(vmImageName)
-    
-    steps:
-    - checkout: self
-      fetchDepth: '0'
-      displayName: 'Checkout Source Code'
-    
-    - task: NodeTool@0
-      displayName: 'Setup Node.js'
-      inputs:
-        versionSpec: '18.x'
-        checkLatest: true
-    
-    - task: UseDotNet@2
-      displayName: 'Setup .NET SDK'
-      inputs:
-        packageType: 'sdk'
-        version: '6.0.x'
-        includePreviewVersions: false
-    
-    - task: PowerShell@2
-      displayName: 'Install Power Platform CLI'
-      inputs:
-        targetType: 'inline'
-        script: |
-          Write-Host "Installing Power Platform CLI..."
-          dotnet tool install --global Microsoft.PowerApps.CLI.Tool
-          Write-Host "Power Platform CLI installed successfully"
-        pwsh: true
-    
-    - task: PowerShell@2
-      displayName: 'Install BuildDataversePCFSolution'
-      inputs:
-        targetType: 'inline'
-        script: |
-          Write-Host "Installing BuildDataversePCFSolution..."
-          Invoke-WebRequest -Uri "https://raw.githubusercontent.com/garethcheyne/BuildDataversePCFSolution/main/install.ps1" -OutFile "install-temp.ps1"
-          & ".\install-temp.ps1" -Force -SkipSetup
-          Remove-Item "install-temp.ps1"
-          Write-Host "BuildDataversePCFSolution installed successfully"
-        pwsh: true
-    
-    - task: PowerShell@2
-      displayName: 'Build PCF Solution'
-      inputs:
-        targetType: 'inline'
-        script: |
-          Write-Host "Starting PCF Solution Build..."
-          Write-Host "Build Configuration: $(BUILD_CONFIGURATION)"
-          
-          # Execute the build script with DevOps-specific parameters
-          .\BuildDataversePCFSolution\build-solution.ps1 -BuildConfiguration "$(BUILD_CONFIGURATION)" -CiMode DevOps -Verbose
-          
-          Write-Host "Build completed successfully"
-        pwsh: true
-        workingDirectory: '$(Build.SourcesDirectory)'
-    
-    - task: PowerShell@2
-      displayName: 'Validate Build Output'
-      inputs:
-        targetType: 'inline'
-        script: |
-          Write-Host "Validating build artifacts..."
-          
-          # Check for expected outputs
-          $outPath = Join-Path (Get-Location) "out"
-          $releasesPath = Join-Path (Get-Location) "releases"
-          
-          if (Test-Path $outPath) {
-            Write-Host "✅ PCF output directory found: $outPath"
-            Get-ChildItem $outPath -Recurse | ForEach-Object { Write-Host "  - $($_.FullName)" }
-          } else {
-            Write-Error "❌ PCF output directory not found: $outPath"
-            exit 1
-          }
-          
-          if (Test-Path $releasesPath) {
-            Write-Host "✅ Solution packages directory found: $releasesPath"
-            Get-ChildItem $releasesPath -Filter "*.zip" | ForEach-Object { 
-              $solutionSize = $_.Length
-              Write-Host "  - $($_.Name) ($([math]::Round($solutionSize/1024, 2)) KB)"
-            }
-          } else {
-            Write-Error "❌ Solution packages directory not found: $releasesPath"
-            exit 1
-          }
-        pwsh: true
-        workingDirectory: '$(Build.SourcesDirectory)'
-    
-    - task: PublishBuildArtifacts@1
-      displayName: 'Publish PCF Build Artifacts'
-      inputs:
-        PathtoPublish: 'out'
-        ArtifactName: 'pcf-control-build'
-        publishLocation: 'Container'
-      condition: always()
-    
-    - task: PublishBuildArtifacts@1
-      displayName: 'Publish Solution Packages'
-      inputs:
-        PathtoPublish: 'releases'
-        ArtifactName: 'solution-packages'
-        publishLocation: 'Container'
+  - stage: Build
+    displayName: "Build PCF Solution"
+    jobs:
+      - job: BuildPCF
+        displayName: "Build PCF Control and Solution"
+        pool:
+          vmImage: $(vmImageName)
 
-- stage: Release
-  displayName: 'Release Management'
-  dependsOn: Build
-  condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/v'))
-  jobs:
-  - deployment: ReleaseToGitHub
-    displayName: 'Create GitHub Release'
-    pool:
-      vmImage: 'ubuntu-latest'
-    environment: 'production'
-    strategy:
-      runOnce:
-        deploy:
-          steps:
+        steps:
           - checkout: self
-            fetchDepth: '1'
-            displayName: 'Checkout for Release'
-          
-          - download: current
-            artifact: solution-packages
-            displayName: 'Download Solution Packages'
-          
-          - task: PowerShell@2
-            displayName: 'Install GitHub CLI'
-            inputs:
-              targetType: 'inline'
-              script: |
-                Write-Host "Installing GitHub CLI..."
-                
-                # Download and install GitHub CLI
-                $ghUrl = "https://github.com/cli/cli/releases/latest/download/gh_windows_amd64.zip"
-                $ghZip = "gh_windows_amd64.zip"
-                $ghDir = "gh_windows_amd64"
-                
-                Write-Host "Downloading GitHub CLI from: $ghUrl"
-                Invoke-WebRequest -Uri $ghUrl -OutFile $ghZip
-                
-                Write-Host "Extracting GitHub CLI..."
-                Expand-Archive -Path $ghZip -DestinationPath . -Force
-                
-                # Add to PATH for this session
-                $ghPath = Join-Path (Get-Location) $ghDir
-                $env:PATH = "$ghPath;$env:PATH"
-                
-                # Verify installation
-                & "$ghPath\gh.exe" version
-                Write-Host "GitHub CLI installed successfully"
-                
-                # Set path for subsequent tasks
-                Write-Host "##vso[task.setvariable variable=GH_PATH]$ghPath"
-              pwsh: true
-          
-          - task: PowerShell@2
-            displayName: 'Extract Release Information'
-            inputs:
-              targetType: 'inline'
-              script: |
-                # Parse solution.yaml to get release information
-                $yamlPath = "solution.yaml"
-                if (Test-Path $yamlPath) {
-                  Write-Host "Reading solution configuration from $yamlPath"
-                  $yamlContent = Get-Content $yamlPath -Raw
-                  
-                  # Extract version and other details for release
-                  if ($yamlContent -match 'version:\s*"([^"]*)"') {
-                    $version = $matches[1]
-                    Write-Host "##vso[task.setvariable variable=SOLUTION_VERSION]$version"
-                    Write-Host "Solution version: $version"
-                  }
-                  
-                  if ($yamlContent -match 'displayName:\s*"([^"]*)"') {
-                    $displayName = $matches[1]
-                    Write-Host "##vso[task.setvariable variable=SOLUTION_DISPLAY_NAME]$displayName"
-                    Write-Host "Solution display name: $displayName"
-                  }
-                }
-                
-                # Extract tag name
-                $tagName = "$(Build.SourceBranchName)"
-                Write-Host "##vso[task.setvariable variable=TAG_NAME]$tagName"
-                Write-Host "Tag name: $tagName"
-              pwsh: true
-          
-          - task: PowerShell@2
-            displayName: 'Create GitHub Release'
-            inputs:
-              targetType: 'inline'
-              script: |
-                Write-Host "Creating GitHub release using BuildDataversePCFSolution script..."
-                
-                # Add GitHub CLI to PATH
-                $env:PATH = "$(GH_PATH);$env:PATH"
-                
-                # Change to source directory where BuildDataversePCFSolution is located
-                Set-Location "$(Build.SourcesDirectory)"
-                
-                # Find the solution packages in the downloaded artifacts
-                $solutionPackagesPath = "$(Pipeline.Workspace)/solution-packages"
-                Write-Host "Looking for solution packages in: $solutionPackagesPath"
-                
-                if (Test-Path $solutionPackagesPath) {
-                  Get-ChildItem $solutionPackagesPath -Filter "*.zip" | ForEach-Object {
-                    Write-Host "Found solution package: $($_.Name)"
-                  }
-                } else {
-                  Write-Error "Solution packages path not found: $solutionPackagesPath"
-                  exit 1
-                }
-                
-                # Execute the GitHub release script with the solution packages directory
-                $releaseResult = .\BuildDataversePCFSolution\create-github-release.ps1 `
-                  -TagName "$(TAG_NAME)" `
-                  -ArtifactPath "$solutionPackagesPath" `
-                  -GitHubToken "$(GITHUB_TOKEN)"
-                
-                if ($releaseResult -eq 0) {
-                  Write-Host "✅ GitHub release created successfully"
-                } else {
-                  Write-Error "❌ GitHub release creation failed"
-                  exit 1
-                }
-              pwsh: true
-            env:
-              GITHUB_TOKEN: $(GITHUB_TOKEN)
+            fetchDepth: "0"
+            displayName: "Checkout Source Code"
 
-- stage: SecurityScan
-  displayName: 'Security Scanning'
-  dependsOn: Build
-  condition: and(succeeded(), eq(variables['Build.Reason'], 'IndividualCI'))
-  jobs:
-  - job: SecurityAnalysis
-    displayName: 'Run Security Scans'
-    pool:
-      vmImage: 'ubuntu-latest'
-    
-    steps:
-    - checkout: self
-      fetchDepth: '0'
-      displayName: 'Checkout for Security Scan'
-    
-    - task: PowerShell@2
-      displayName: 'Install Trivy Scanner'
-      inputs:
-        targetType: 'inline'
-        script: |
-          Write-Host "Installing Trivy security scanner..."
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
-          trivy --version
-        pwsh: false
-    
-    - task: PowerShell@2
-      displayName: 'Run Trivy Security Scan'
-      inputs:
-        targetType: 'inline'
-        script: |
-          Write-Host "Running Trivy security scan..."
-          trivy fs --format sarif --output trivy-results.sarif .
-          
-          # Also create a readable report
-          trivy fs --format table --output trivy-report.txt .
-          
-          Write-Host "Security scan completed"
-        pwsh: false
-    
-    - task: PublishBuildArtifacts@1
-      displayName: 'Publish Security Scan Results'
-      inputs:
-        PathtoPublish: 'trivy-results.sarif'
-        ArtifactName: 'security-scan-results'
-        publishLocation: 'Container'
-      condition: always()
-    
-    - task: PublishBuildArtifacts@1
-      displayName: 'Publish Security Report'
-      inputs:
-        PathtoPublish: 'trivy-report.txt'
-        ArtifactName: 'security-report'
-        publishLocation: 'Container'
-      condition: always()
+          - task: NodeTool@0
+            displayName: "Setup Node.js"
+            inputs:
+              versionSpec: "18.x"
+              checkLatest: true
+
+          - task: UseDotNet@2
+            displayName: "Setup .NET SDK"
+            inputs:
+              packageType: "sdk"
+              version: "6.0.x"
+              includePreviewVersions: false
+
+          - task: PowerShell@2
+            displayName: "Install Power Platform CLI"
+            inputs:
+              targetType: "inline"
+              script: |
+                Write-Host "Installing Power Platform CLI..."
+                dotnet tool install --global Microsoft.PowerApps.CLI.Tool
+                Write-Host "Power Platform CLI installed successfully"
+              pwsh: true
+
+          - task: PowerShell@2
+            displayName: "Install BuildDataversePCFSolution"
+            inputs:
+              targetType: "inline"
+              script: |
+                Write-Host "Installing BuildDataversePCFSolution..."
+                Invoke-WebRequest -Uri "https://raw.githubusercontent.com/garethcheyne/BuildDataversePCFSolution/main/install.ps1" -OutFile "install-temp.ps1"
+                & ".\install-temp.ps1" -Force -SkipSetup
+                Remove-Item "install-temp.ps1"
+                Write-Host "BuildDataversePCFSolution installed successfully"
+              pwsh: true
+
+          - task: PowerShell@2
+            displayName: "Build PCF Solution"
+            inputs:
+              targetType: "inline"
+              script: |
+                Write-Host "Starting PCF Solution Build..."
+                Write-Host "Build Configuration: $(BUILD_CONFIGURATION)"
+
+                # Execute the build script with DevOps-specific parameters
+                .\BuildDataversePCFSolution\build-solution.ps1 -BuildConfiguration "$(BUILD_CONFIGURATION)" -CiMode DevOps -Verbose
+
+                Write-Host "Build completed successfully"
+              pwsh: true
+              workingDirectory: "$(Build.SourcesDirectory)"
+
+          - task: PowerShell@2
+            displayName: "Validate Build Output"
+            inputs:
+              targetType: "inline"
+              script: |
+                Write-Host "Validating build artifacts..."
+
+                # Check for expected outputs
+                $outPath = Join-Path (Get-Location) "out"
+                $releasesPath = Join-Path (Get-Location) "releases"
+
+                if (Test-Path $outPath) {
+                  Write-Host "✅ PCF output directory found: $outPath"
+                  Get-ChildItem $outPath -Recurse | ForEach-Object { Write-Host "  - $($_.FullName)" }
+                } else {
+                  Write-Error "❌ PCF output directory not found: $outPath"
+                  exit 1
+                }
+
+                if (Test-Path $releasesPath) {
+                  Write-Host "✅ Solution packages directory found: $releasesPath"
+                  Get-ChildItem $releasesPath -Filter "*.zip" | ForEach-Object { 
+                    $solutionSize = $_.Length
+                    Write-Host "  - $($_.Name) ($([math]::Round($solutionSize/1024, 2)) KB)"
+                  }
+                } else {
+                  Write-Error "❌ Solution packages directory not found: $releasesPath"
+                  exit 1
+                }
+              pwsh: true
+              workingDirectory: "$(Build.SourcesDirectory)"
+
+          - task: PublishBuildArtifacts@1
+            displayName: "Publish PCF Build Artifacts"
+            inputs:
+              PathtoPublish: "out"
+              ArtifactName: "pcf-control-build"
+              publishLocation: "Container"
+            condition: always()
+
+          - task: PublishBuildArtifacts@1
+            displayName: "Publish Solution Packages"
+            inputs:
+              PathtoPublish: "releases"
+              ArtifactName: "solution-packages"
+              publishLocation: "Container"
+
+  - stage: Release
+    displayName: "Release Management"
+    dependsOn: Build
+    condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/v'))
+    jobs:
+      - deployment: ReleaseToGitHub
+        displayName: "Create GitHub Release"
+        pool:
+          vmImage: "ubuntu-latest"
+        environment: "production"
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                  fetchDepth: "1"
+                  displayName: "Checkout for Release"
+
+                - download: current
+                  artifact: solution-packages
+                  displayName: "Download Solution Packages"
+
+                - task: PowerShell@2
+                  displayName: "Install GitHub CLI"
+                  inputs:
+                    targetType: "inline"
+                    script: |
+                      Write-Host "Installing GitHub CLI..."
+
+                      # Download and install GitHub CLI
+                      $ghUrl = "https://github.com/cli/cli/releases/latest/download/gh_windows_amd64.zip"
+                      $ghZip = "gh_windows_amd64.zip"
+                      $ghDir = "gh_windows_amd64"
+
+                      Write-Host "Downloading GitHub CLI from: $ghUrl"
+                      Invoke-WebRequest -Uri $ghUrl -OutFile $ghZip
+
+                      Write-Host "Extracting GitHub CLI..."
+                      Expand-Archive -Path $ghZip -DestinationPath . -Force
+
+                      # Add to PATH for this session
+                      $ghPath = Join-Path (Get-Location) $ghDir
+                      $env:PATH = "$ghPath;$env:PATH"
+
+                      # Verify installation
+                      & "$ghPath\gh.exe" version
+                      Write-Host "GitHub CLI installed successfully"
+
+                      # Set path for subsequent tasks
+                      Write-Host "##vso[task.setvariable variable=GH_PATH]$ghPath"
+                    pwsh: true
+
+                - task: PowerShell@2
+                  displayName: "Extract Release Information"
+                  inputs:
+                    targetType: "inline"
+                    script: |
+                      # Parse solution.yaml to get release information
+                      $yamlPath = "solution.yaml"
+                      if (Test-Path $yamlPath) {
+                        Write-Host "Reading solution configuration from $yamlPath"
+                        $yamlContent = Get-Content $yamlPath -Raw
+                        
+                        # Extract version and other details for release
+                        if ($yamlContent -match 'version:\s*"([^"]*)"') {
+                          $version = $matches[1]
+                          Write-Host "##vso[task.setvariable variable=SOLUTION_VERSION]$version"
+                          Write-Host "Solution version: $version"
+                        }
+                        
+                        if ($yamlContent -match 'displayName:\s*"([^"]*)"') {
+                          $displayName = $matches[1]
+                          Write-Host "##vso[task.setvariable variable=SOLUTION_DISPLAY_NAME]$displayName"
+                          Write-Host "Solution display name: $displayName"
+                        }
+                      }
+
+                      # Extract tag name
+                      $tagName = "$(Build.SourceBranchName)"
+                      Write-Host "##vso[task.setvariable variable=TAG_NAME]$tagName"
+                      Write-Host "Tag name: $tagName"
+                    pwsh: true
+
+                - task: PowerShell@2
+                  displayName: "Create GitHub Release"
+                  inputs:
+                    targetType: "inline"
+                    script: |
+                      Write-Host "Creating GitHub release using BuildDataversePCFSolution script..."
+
+                      # Add GitHub CLI to PATH
+                      $env:PATH = "$(GH_PATH);$env:PATH"
+
+                      # Change to source directory where BuildDataversePCFSolution is located
+                      Set-Location "$(Build.SourcesDirectory)"
+
+                      # Find the solution packages in the downloaded artifacts
+                      $solutionPackagesPath = "$(Pipeline.Workspace)/solution-packages"
+                      Write-Host "Looking for solution packages in: $solutionPackagesPath"
+
+                      if (Test-Path $solutionPackagesPath) {
+                        Get-ChildItem $solutionPackagesPath -Filter "*.zip" | ForEach-Object {
+                          Write-Host "Found solution package: $($_.Name)"
+                        }
+                      } else {
+                        Write-Error "Solution packages path not found: $solutionPackagesPath"
+                        exit 1
+                      }
+
+                      # Execute the GitHub release script with the solution packages directory
+                      $releaseResult = .\BuildDataversePCFSolution\create-github-release.ps1 `
+                        -TagName "$(TAG_NAME)" `
+                        -ArtifactPath "$solutionPackagesPath" `
+                        -GitHubToken "$(GITHUB_TOKEN)"
+
+                      if ($releaseResult -eq 0) {
+                        Write-Host "✅ GitHub release created successfully"
+                      } else {
+                        Write-Error "❌ GitHub release creation failed"
+                        exit 1
+                      }
+                    pwsh: true
+                  env:
+                    GITHUB_TOKEN: $(GITHUB_TOKEN)
+
+  - stage: SecurityScan
+    displayName: "Security Scanning"
+    dependsOn: Build
+    condition: and(succeeded(), eq(variables['Build.Reason'], 'IndividualCI'))
+    jobs:
+      - job: SecurityAnalysis
+        displayName: "Run Security Scans"
+        pool:
+          vmImage: "ubuntu-latest"
+
+        steps:
+          - checkout: self
+            fetchDepth: "0"
+            displayName: "Checkout for Security Scan"
+
+          - task: PowerShell@2
+            displayName: "Install Trivy Scanner"
+            inputs:
+              targetType: "inline"
+              script: |
+                Write-Host "Installing Trivy security scanner..."
+                curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+                trivy --version
+              pwsh: false
+
+          - task: PowerShell@2
+            displayName: "Run Trivy Security Scan"
+            inputs:
+              targetType: "inline"
+              script: |
+                Write-Host "Running Trivy security scan..."
+                trivy fs --format sarif --output trivy-results.sarif .
+
+                # Also create a readable report
+                trivy fs --format table --output trivy-report.txt .
+
+                Write-Host "Security scan completed"
+              pwsh: false
+
+          - task: PublishBuildArtifacts@1
+            displayName: "Publish Security Scan Results"
+            inputs:
+              PathtoPublish: "trivy-results.sarif"
+              ArtifactName: "security-scan-results"
+              publishLocation: "Container"
+            condition: always()
+
+          - task: PublishBuildArtifacts@1
+            displayName: "Publish Security Report"
+            inputs:
+              PathtoPublish: "trivy-report.txt"
+              ArtifactName: "security-report"
+              publishLocation: "Container"
+            condition: always()
