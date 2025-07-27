@@ -12,11 +12,6 @@ BUILDSOLUTION_RAW_URL="https://raw.githubusercontent.com/garethcheyne/BuildDatav
 
 set -e
 
-# Version information
-BUILDSOLUTION_VERSION="2025.07.27.00"
-BUILDSOLUTION_REPO="https://github.com/garethcheyne/BuildDataverseSolution.git"
-BUILDSOLUTION_RAW_URL="https://raw.githubusercontent.com/garethcheyne/BuildDataverseSolution/main"
-
 # Color output functions
 print_success() {
     echo -e "\033[32m✅ SUCCESS: $1\033[0m"
