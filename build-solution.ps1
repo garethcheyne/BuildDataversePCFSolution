@@ -330,11 +330,18 @@ try {
             # Read the solution.xml file
             [xml]$solutionXml = Get-Content $solutionXmlPath
             
-            # Update UniqueName
+            # Update UniqueName (should NOT include version)
             $uniqueNameNode = $solutionXml.SelectSingleNode("//UniqueName")
             if ($uniqueNameNode) {
-                $uniqueNameNode.InnerText = $finalSolutionName
-                Write-Info "Updated UniqueName to: $finalSolutionName"
+                $uniqueNameNode.InnerText = $baseSolutionName
+                Write-Info "Updated UniqueName to: $baseSolutionName"
+            }
+            
+            # Update Version (separate element for version)
+            $versionNode = $solutionXml.SelectSingleNode("//Version")
+            if ($versionNode) {
+                $versionNode.InnerText = $solutionVersion
+                Write-Info "Updated Version to: $solutionVersion"
             }
             
             # Update LocalizedName description
