@@ -62,21 +62,60 @@ The installer will:
 2. ✅ **Download** the latest BuildDataversePCFSolution files
 3. ✅ **Check for updates** if already installed
 4. ✅ **Run interactive setup** to configure your project
-5. ✅ **Add npm boom script** for quick building (`npm run boom`)
+5. ✅ **Add npm boom scripts** to your package.json for quick building
+
+### 📦 NPM Scripts Added After Setup
+
+The setup process automatically adds these convenient npm scripts to your `package.json`:
+
+| Script | Command | Purpose |
+|--------|---------|---------|
+| `npm run boom` | Release build + package | **Most common** - Production ready solution |
+| `npm run boom-debug` | Debug build + package | Development/testing with debug symbols |
+| `npm run boom-managed` | Managed solution only | Creates managed solution package |
+| `npm run boom-unmanaged` | Unmanaged solution only | Creates unmanaged solution package |  
+| `npm run boom-check` | Environment validation | Checks if your dev environment is ready |
+| `npm run boom-create` | PCF project creator | Creates new PCF project structure |
 
 ## ⚡ Quick Start After Installation
 
-Once installed, you can:
+Once installed, you have access to several convenient npm scripts:
+
+### 🚀 NPM Boom Commands (Available after setup)
 
 ```bash
-# Quick build and package (new!)
+# Quick release build and package (most common)
 npm run boom
 
+# Debug build for testing
+npm run boom-debug
+
+# Build managed solution only
+npm run boom-managed
+
+# Build unmanaged solution only  
+npm run boom-unmanaged
+
+# Check development environment
+npm run boom-check
+
+# Create new PCF project structure
+npm run boom-create
+```
+
+### 🔧 Manual PowerShell Commands
+
+If you prefer direct PowerShell execution:
+
+```powershell
 # Manual build
 .\BuildDataversePCFSolution\build-solution.ps1
 
 # Reconfigure your project
 .\BuildDataversePCFSolution\setup-project.ps1
+
+# Environment check
+.\BuildDataversePCFSolution\environment-check.ps1
 ```
 
 ## 📋 What You Get
@@ -202,6 +241,28 @@ Always test locally before pushing to CI/CD:
 
 ## ⚡ Quick Commands Reference
 
+### NPM Boom Scripts (Recommended)
+```bash
+# Release build and package (most common use)
+npm run boom
+
+# Debug build for development
+npm run boom-debug
+
+# Build managed solution package
+npm run boom-managed
+
+# Build unmanaged solution package
+npm run boom-unmanaged
+
+# Check your development environment
+npm run boom-check
+
+# Create new PCF project structure
+npm run boom-create
+```
+
+### PowerShell Direct Commands
 ```powershell
 # Setup new project
 .\BuildDataversePCFSolution\setup-project.ps1
