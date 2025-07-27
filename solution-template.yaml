@@ -13,7 +13,26 @@ publisher:
   name: "YourCompanyName"
   displayName: "Your Company Display Name"
   prefix: "yc" # 2-3 character prefix for your organization
+  email: "your.email@yourcompany.com" # Publisher contact email
   description: "Your organization description"
+  
+  # Optional address information (will be injected into solution.xml if provided)
+  address:
+    line1: "" # Street address line 1
+    line2: "" # Street address line 2
+    line3: "" # Street address line 3
+    city: "" # City
+    stateOrProvince: "" # State or Province
+    postalCode: "" # Postal/ZIP code
+    country: "" # Country
+    county: "" # County
+    telephone1: "" # Primary phone
+    telephone2: "" # Secondary phone
+    telephone3: "" # Tertiary phone
+    fax: "" # Fax number
+    name: "" # Address name/label
+    primaryContactName: "" # Primary contact person
+    postOfficeBox: "" # PO Box
 
 # Project Configuration
 project:
