@@ -119,6 +119,7 @@ function Install-BuildDataversePCFSolution {
     
     # List of files to download
     $filesToDownload = @(
+        @{ Source = "upgrade.ps1"; Dest = "upgrade.ps1" },
         @{ Source = "setup-project.ps1"; Dest = "setup-project.ps1" },
         @{ Source = "build-solution.ps1"; Dest = "build-solution.ps1" },
         @{ Source = "environment-check.ps1"; Dest = "environment-check.ps1" },

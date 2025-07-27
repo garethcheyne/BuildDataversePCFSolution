@@ -97,6 +97,7 @@ install_builddataversepcfsolution() {
     
     # List of files to download
     local files=(
+        "upgrade.ps1"
         "setup-project.ps1"
         "build-solution.ps1"
         "environment-check.ps1"
