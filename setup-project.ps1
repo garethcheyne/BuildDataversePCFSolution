@@ -39,13 +39,13 @@ function Add-BoomScriptToPackageJson {
         
         # Add BuildDataversePCFSolution scripts
         $scriptsToAdd = @{
-            "boom" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/build-solution.ps1 -BuildConfiguration Release"
-            "boom-debug" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/build-solution.ps1 -BuildConfiguration Debug"
-            "boom-managed" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/build-solution.ps1 -BuildConfiguration Release -PackageType Managed"
-            "boom-unmanaged" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/build-solution.ps1 -BuildConfiguration Release -PackageType Unmanaged"
-            "boom-check" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/environment-check.ps1"
-            "boom-create" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/create-pcf-project.ps1"
-            "boom-upgrade" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/upgrade.ps1"
+            "boom" = "powershell.exe -ExecutionPolicy Bypass -Command `"& './BuildDataversePCFSolution/build-solution.ps1' -BuildConfiguration Release`""
+            "boom-debug" = "powershell.exe -ExecutionPolicy Bypass -Command `"& './BuildDataversePCFSolution/build-solution.ps1' -BuildConfiguration Debug`""
+            "boom-managed" = "powershell.exe -ExecutionPolicy Bypass -Command `"& './BuildDataversePCFSolution/build-solution.ps1' -BuildConfiguration Release -PackageType Managed`""
+            "boom-unmanaged" = "powershell.exe -ExecutionPolicy Bypass -Command `"& './BuildDataversePCFSolution/build-solution.ps1' -BuildConfiguration Release -PackageType Unmanaged`""
+            "boom-check" = "powershell.exe -ExecutionPolicy Bypass -Command `"& './BuildDataversePCFSolution/environment-check.ps1'`""
+            "boom-create" = "powershell.exe -ExecutionPolicy Bypass -Command `"& './BuildDataversePCFSolution/create-pcf-project.ps1'`""
+            "boom-upgrade" = "powershell.exe -ExecutionPolicy Bypass -Command `"& './BuildDataversePCFSolution/upgrade.ps1'`""
         }
         
         $scriptsAdded = 0
@@ -376,13 +376,13 @@ function New-PackageJsonFromScratch {
         
         # Add BuildDataversePCFSolution scripts
         $scriptsToAdd = [ordered]@{
-            "boom" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/build-solution.ps1 -BuildConfiguration Release"
-            "boom-debug" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/build-solution.ps1 -BuildConfiguration Debug"
-            "boom-managed" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/build-solution.ps1 -BuildConfiguration Release -PackageType Managed"
-            "boom-unmanaged" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/build-solution.ps1 -BuildConfiguration Release -PackageType Unmanaged"
-            "boom-check" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/environment-check.ps1"
-            "boom-create" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/create-pcf-project.ps1"
-            "boom-upgrade" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/upgrade.ps1"
+            "boom" = "powershell.exe -ExecutionPolicy Bypass -Command `"& './BuildDataversePCFSolution/build-solution.ps1' -BuildConfiguration Release`""
+            "boom-debug" = "powershell.exe -ExecutionPolicy Bypass -Command `"& './BuildDataversePCFSolution/build-solution.ps1' -BuildConfiguration Debug`""
+            "boom-managed" = "powershell.exe -ExecutionPolicy Bypass -Command `"& './BuildDataversePCFSolution/build-solution.ps1' -BuildConfiguration Release -PackageType Managed`""
+            "boom-unmanaged" = "powershell.exe -ExecutionPolicy Bypass -Command `"& './BuildDataversePCFSolution/build-solution.ps1' -BuildConfiguration Release -PackageType Unmanaged`""
+            "boom-check" = "powershell.exe -ExecutionPolicy Bypass -Command `"& './BuildDataversePCFSolution/environment-check.ps1'`""
+            "boom-create" = "powershell.exe -ExecutionPolicy Bypass -Command `"& './BuildDataversePCFSolution/create-pcf-project.ps1'`""
+            "boom-upgrade" = "powershell.exe -ExecutionPolicy Bypass -Command `"& './BuildDataversePCFSolution/upgrade.ps1'`""
         }
         
         $scriptsAdded = 0

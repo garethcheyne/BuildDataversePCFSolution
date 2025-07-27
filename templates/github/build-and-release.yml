@@ -82,7 +82,7 @@ jobs:
         retention-days: 90
         if-no-files-found: warn
         
-    - name: Upload managed solution
+    - name: Upload managed solution  
       uses: actions/upload-artifact@v4
       with:
         name: managed-solution  
@@ -167,7 +167,7 @@ jobs:
   manual-release:
     needs: build
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    if: "github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')"
     permissions:
       contents: write
       actions: read
@@ -243,7 +243,7 @@ jobs:
   dev-release:
     needs: build
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    if: "github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')"
     permissions:
       contents: write
       actions: read

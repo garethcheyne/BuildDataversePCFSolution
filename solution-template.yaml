@@ -12,20 +12,20 @@ solution:
 publisher:
   name: "YourCompanyName"
   displayName: "Your Company Display Name"
-  prefix: "yc"  # 2-3 character prefix for your organization
+  prefix: "yc" # 2-3 character prefix for your organization
   description: "Your organization description"
 
 # Project Configuration
 project:
   # Path to the PCF project file (.pcfproj) - relative to solution.yaml location
   pcfProjectPath: "./YourProject.pcfproj"
-  
+
   # Root directory of the PCF control - usually current directory
   pcfRootPath: "./"
-  
+
   # Build output directory (relative to PCF root)
   buildOutputPath: "./out"
-  
+
   # Package.json location
   packageJsonPath: "./package.json"
 
@@ -33,16 +33,16 @@ project:
 build:
   # Whether to clean before building
   cleanBuild: true
-  
+
   # Node.js version requirement
   nodeVersion: "18"
-  
+
   # .NET version requirement
   dotnetVersion: "6.0.x"
-  
+
   # NPM command to use (ci for lockfile, install for no lockfile)
   npmCommand: "ci"
-  
+
   # PCF build command (usually 'build')
   pcfBuildCommand: "build"
 
@@ -50,7 +50,7 @@ build:
 solutionStructure:
   # Temporary solution directory name
   tempDirectory: "solution"
-  
+
   # Solution files that should exist after build
   expectedFiles:
     - "bin/Debug/solution.zip"
@@ -62,14 +62,14 @@ solutionStructure:
 artifacts:
   # Final solution package name template (will be suffixed with .zip)
   packageName: "{{solution.name}}"
-  
+
   # Artifacts to retain
   buildArtifacts:
     - path: "out/"
       description: "PCF build output"
     - path: "{{solution.name}}.zip"
       description: "Solution package"
-  
+
   # Retention settings (for CI/CD)
   retention:
     buildArtifacts: 30 # days
@@ -83,17 +83,17 @@ validation:
     - "index.ts"
     - "package.json"
     - "tsconfig.json"
-  
+
   # Files that should exist after PCF build
   postBuildFiles:
     - "out/bundle.js"
     - "out/ControlManifest.xml"
-  
+
   # Solution validation
   solutionValidation:
     # Minimum solution package size (bytes)
     minPackageSize: 1024
-    
+
     # Required solution components
     requiredComponents:
       - "CustomControls"
@@ -105,32 +105,32 @@ github:
     owner: "yourusername"
     name: "your-repository-name"
     branch: "main"
-  
+
   # Release configuration
   release:
     # Release title template
     titleTemplate: "{{solution.displayName}} v{{solution.version}}"
-    
+
     # Release body template (supports markdown)
     bodyTemplate: |
       ## {{solution.displayName}} {{solution.version}}
-      
-      ### 🚀 What's New
+
+      ### What's New
       - Add your release notes here
       - List new features and improvements
       - Include any breaking changes
-      
-      ### 💾 Installation
+
+      ### Installation
       1. Download the `{{solution.name}}.zip` file
       2. Import it into your Power Platform environment
       3. Configure any required settings
       4. Add the control to your forms or canvas apps
-      
-      ### 📋 Requirements
+
+      ### Requirements
       - Power Platform environment with PCF controls enabled
       - Any specific API keys or configurations needed
-      
-      ### 🔧 Configuration
+
+      ### Configuration
       See the [README]({{github.repository.url}}/blob/{{github.repository.branch}}/README.md) for detailed configuration instructions.
 
 # Environment Variables (can be overridden by CLI parameters)
@@ -139,18 +139,18 @@ environment:
   PUBLISHER_NAME: "{{publisher.name}}"
   PUBLISHER_PREFIX: "{{publisher.prefix}}"
   BUILD_CONFIGURATION: "Release"
-  
+
 # Custom Scripts (optional - PowerShell code to run at various stages)
 scripts:
   # Pre-build script (runs before npm install)
   preBuild: "Write-Host 'Starting pre-build validation for {{solution.displayName}}...'"
-  
+
   # Post-build script (runs after PCF build, before solution creation)
   postBuild: "Write-Host 'Running post-build validation...'"
-  
+
   # Pre-package script (runs before solution packaging)
   prePackage: "Write-Host 'Preparing for packaging...'"
-  
+
   # Post-package script (runs after successful packaging)
   postPackage: "Write-Host 'Package created successfully: {{solution.name}}.zip'"
 
@@ -158,12 +158,12 @@ scripts:
 logging:
   # Log level (Verbose, Info, Warning, Error)
   level: "Info"
-  
+
   # Whether to show timestamps in output
   showTimestamps: true
-  
+
   # Whether to use colors in console output
   useColors: true
-  
+
   # Optional log file path (comment out to disable file logging)
   # logFile: "./build.log"
