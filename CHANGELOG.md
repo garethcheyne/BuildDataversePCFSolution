@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Version-based Package Naming**: ZIP files now include version number in filename
   - Format: `{SolutionName}_v{Version}_{Type}.zip`
   - Example: `PCFFluentUiAutoCompleteGooglePlaces_v2025.7.27.01_managed.zip`
+- **Releases Directory**: All solution packages are now output to a dedicated `releases/` directory
+  - Automatic creation of releases directory if it doesn't exist
+  - Cleaner project root with organized build outputs
 - **Enhanced Build Output**: Improved logging to show all created packages with sizes
 - **Documentation**: Added CHANGELOG.md and BLOG.md for project documentation
 
@@ -27,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Package Naming Convention**: Changed from single ZIP to versioned, type-specific packages
+- **Package Output Location**: Solution ZIP files are now created in `releases/` directory instead of root
+- **Clean Build Process**: Updated to handle new versioned package naming patterns and releases directory
 - **Build Configuration Display**: Added solution type and version information to build output
 - **Clean Process**: Enhanced to clean both managed and unmanaged packages
 

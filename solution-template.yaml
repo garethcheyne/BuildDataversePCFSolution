@@ -143,28 +143,16 @@ environment:
 # Custom Scripts (optional - PowerShell code to run at various stages)
 scripts:
   # Pre-build script (runs before npm install)
-  preBuild: |
-    Write-Host "Starting pre-build validation for {{solution.displayName}}..."
-    # Add your custom pre-build logic here
-    # Example: Check environment variables, validate prerequisites, etc.
+  preBuild: "Write-Host 'Starting pre-build validation for {{solution.displayName}}...'"
   
   # Post-build script (runs after PCF build, before solution creation)
-  postBuild: |
-    Write-Host "Running post-build validation..."
-    # Add your custom post-build logic here
-    # Example: Run tests, validate outputs, copy additional files, etc.
+  postBuild: "Write-Host 'Running post-build validation...'"
   
   # Pre-package script (runs before solution packaging)
-  prePackage: |
-    Write-Host "Preparing for packaging..."
-    # Add your custom pre-package logic here
-    # Example: Update version numbers, prepare documentation, etc.
+  prePackage: "Write-Host 'Preparing for packaging...'"
   
   # Post-package script (runs after successful packaging)
-  postPackage: |
-    Write-Host "Package created successfully: {{solution.name}}.zip"
-    # Add your custom post-package logic here
-    # Example: Upload to storage, send notifications, etc.
+  postPackage: "Write-Host 'Package created successfully: {{solution.name}}.zip'"
 
 # Logging Configuration
 logging:

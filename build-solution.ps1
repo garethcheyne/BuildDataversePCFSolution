@@ -201,7 +201,7 @@ try {
     Write-Info "Starting PCF Control Build Process..."
     Write-Info "Solution Name: $baseSolutionName"
     Write-Info "Solution Version: $solutionVersion"
-    Write-Info "Final Package Name: $finalSolutionName.zip"
+    Write-Info "Final Package Name: releases/$finalSolutionName.zip"
     Write-Info "Publisher: $finalPublisherName ($finalPublisherPrefix)"
     Write-Info "Build Configuration: $BuildConfiguration"
     Write-Info "Solution Type: $finalSolutionType"
@@ -218,16 +218,25 @@ try {
     }
     Write-Success "Project structure validation passed"
     
-    # Step 2: Clean previous build artifacts
+    # Step 2: Create releases directory and clean previous build artifacts
+    $releasesDir = "releases"
+    if (-not (Test-Path $releasesDir)) {
+        New-Item -ItemType Directory -Path $releasesDir -Force | Out-Null
+        Write-Info "Created releases directory: $releasesDir"
+    }
+    
     if ($finalCleanBuild) {
         Write-Info "Cleaning previous build artifacts..."
         $cleanPaths = @("out", $config.solutionStructure.tempDirectory)
         
-        # Clean solution packages based on naming pattern
+        # Clean solution packages based on naming pattern in releases directory
         $packagePatterns = @(
-            "${finalSolutionName}_managed.zip",
-            "${finalSolutionName}_unmanaged.zip",
-            "$finalSolutionName.zip"  # Legacy single package
+            "$releasesDir/${finalSolutionName}_managed.zip",
+            "$releasesDir/${finalSolutionName}_unmanaged.zip",
+            "$releasesDir/$finalSolutionName.zip",  # Legacy single package
+            "${finalSolutionName}_managed.zip",      # Legacy root location
+            "${finalSolutionName}_unmanaged.zip",   # Legacy root location
+            "$finalSolutionName.zip"                 # Legacy root location
         )
         
         foreach ($pattern in $packagePatterns) {
@@ -288,9 +297,16 @@ try {
     # Step 7: Create solution folder
     $tempDir = if ($config.solutionStructure.tempDirectory) { $config.solutionStructure.tempDirectory } else { "solution" }
     Write-Info "Creating solution structure in: $tempDir"
+    
+    # Clean up existing solution directory if it exists
+    if (Test-Path $tempDir) {
+        Write-Info "Removing existing solution directory: $tempDir"
+        Remove-Item $tempDir -Recurse -Force
+    }
+    
     New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
     Set-Location $tempDir
-    
+
     # Step 8: Initialize solution
     Write-Info "Initializing Power Platform solution..."
     & pac solution init --publisher-name $finalPublisherName --publisher-prefix $finalPublisherPrefix
@@ -322,31 +338,33 @@ try {
     if ($finalSolutionType -eq "Unmanaged" -or $finalSolutionType -eq "Both") {
         Write-Info "Creating unmanaged solution package..."
         $unmanagedName = "${finalSolutionName}_unmanaged"
+        $unmanagedPath = "../releases/$unmanagedName.zip"
         
         # Try to find built solution first
         $solutionFiles = Get-ChildItem -Path "bin/$BuildConfiguration" -Filter "*.zip" -ErrorAction SilentlyContinue
         if ($solutionFiles.Count -gt 0) {
             $sourceSolution = $solutionFiles[0].FullName
-            Copy-Item $sourceSolution "../$unmanagedName.zip" -Force
-            Write-Success "Unmanaged solution packaged from build output: $unmanagedName.zip"
+            Copy-Item $sourceSolution $unmanagedPath -Force
+            Write-Success "Unmanaged solution packaged from build output: releases/$unmanagedName.zip"
         } else {
             # Fallback to manual packing
-            & pac solution pack --zipfile "../$unmanagedName.zip"
+            & pac solution pack --zipfile $unmanagedPath --folder src
             if ($LASTEXITCODE -ne 0) { throw "Unmanaged solution packaging failed" }
-            Write-Success "Unmanaged solution packaged: $unmanagedName.zip"
+            Write-Success "Unmanaged solution packaged: releases/$unmanagedName.zip"
         }
-        $createdPackages += "$unmanagedName.zip"
+        $createdPackages += "releases/$unmanagedName.zip"
     }
     
     if ($finalSolutionType -eq "Managed" -or $finalSolutionType -eq "Both") {
         Write-Info "Creating managed solution package..."
         $managedName = "${finalSolutionName}_managed"
+        $managedPath = "../releases/$managedName.zip"
         
-        # For managed solutions, we need to use pac solution pack with --managed flag
-        & pac solution pack --zipfile "../$managedName.zip" --managed
+        # For managed solutions, we need to use pac solution pack with --packagetype Managed and specify the src folder
+        & pac solution pack --zipfile $managedPath --packagetype Managed --folder src
         if ($LASTEXITCODE -ne 0) { throw "Managed solution packaging failed" }
-        Write-Success "Managed solution packaged: $managedName.zip"
-        $createdPackages += "$managedName.zip"
+        Write-Success "Managed solution packaged: releases/$managedName.zip"
+        $createdPackages += "releases/$managedName.zip"
     }
     
     # Step 13: Return to root directory

@@ -1,5 +1,5 @@
-# BuildDataverseSolution Installation Script
-# This script downloads and installs BuildDataverseSolution to your PCF project
+# BuildDataversePCFSolution Installation Script
+# This script downloads and installs BuildDataversePCFSolution to your PCF project
 param(
     [string]$ProjectPath = ".",
     [switch]$Force,
@@ -8,8 +8,8 @@ param(
 
 # Version information
 $BUILDSOLUTION_VERSION = "1.0.0"
-$BUILDSOLUTION_REPO = "https://github.com/garethcheyne/BuildDataverseSolution.git"
-$BUILDSOLUTION_RAW_URL = "https://raw.githubusercontent.com/garethcheyne/BuildDataverseSolution/main"
+$BUILDSOLUTION_REPO = "https://github.com/garethcheyne/BuildDataversePCFSolution.git"
+$BUILDSOLUTION_RAW_URL = "https://raw.githubusercontent.com/garethcheyne/BuildDataversePCFSolution/main"
 
 # Color output functions
 function Write-Success {
@@ -56,7 +56,7 @@ function Test-PCFProject {
 function Get-InstalledVersion {
     param([string]$ProjectPath)
     
-    $versionFile = Join-Path $ProjectPath "BuildDataverseSolution\.version"
+    $versionFile = Join-Path $ProjectPath "BuildDataversePCFSolution\.version"
     if (Test-Path $versionFile) {
         try {
             return Get-Content $versionFile -Raw | ConvertFrom-Json | Select-Object -ExpandProperty version
@@ -104,15 +104,15 @@ function Download-File {
     }
 }
 
-function Install-BuildDataverseSolution {
+function Install-BuildDataversePCFSolution {
     param(
         [string]$ProjectPath,
         [bool]$IsUpgrade = $false
     )
     
-    $buildSolutionDir = Join-Path $ProjectPath "BuildDataverseSolution"
+    $buildSolutionDir = Join-Path $ProjectPath "BuildDataversePCFSolution"
     
-    # Create BuildDataverseSolution directory
+    # Create BuildDataversePCFSolution directory
     if (-not (Test-Path $buildSolutionDir)) {
         New-Item -Path $buildSolutionDir -ItemType Directory -Force | Out-Null
     }
@@ -121,6 +121,8 @@ function Install-BuildDataverseSolution {
     $filesToDownload = @(
         @{ Source = "setup-project.ps1"; Dest = "setup-project.ps1" },
         @{ Source = "build-solution.ps1"; Dest = "build-solution.ps1" },
+        @{ Source = "environment-check.ps1"; Dest = "environment-check.ps1" },
+        @{ Source = "create-pcf-project.ps1"; Dest = "create-pcf-project.ps1" },
         @{ Source = "README.md"; Dest = "README.md" },
         @{ Source = "GETTING-STARTED.md"; Dest = "GETTING-STARTED.md" }
     )
@@ -150,9 +152,9 @@ function Install-BuildDataverseSolution {
         $versionInfo | ConvertTo-Json | Set-Content -Path $versionFile
         
         if ($IsUpgrade) {
-            Write-Success "BuildDataverseSolution upgraded to version $BUILDSOLUTION_VERSION"
+            Write-Success "BuildDataversePCFSolution upgraded to version $BUILDSOLUTION_VERSION"
         } else {
-            Write-Success "BuildDataverseSolution installed successfully!"
+            Write-Success "BuildDataversePCFSolution installed successfully!"
         }
         
         return $true
@@ -163,8 +165,8 @@ function Install-BuildDataverseSolution {
 }
 
 try {
-    Write-Header "BuildDataverseSolution Installer"
-    Write-Info "Installing BuildDataverseSolution v$BUILDSOLUTION_VERSION"
+    Write-Header "BuildDataversePCFSolution Installer"
+    Write-Info "Installing BuildDataversePCFSolution v$BUILDSOLUTION_VERSION"
     
     # Resolve project path
     $ProjectPath = Resolve-Path $ProjectPath -ErrorAction Stop
@@ -184,7 +186,7 @@ try {
     $isUpgrade = $false
     
     if ($installedVersion) {
-        Write-Info "BuildDataverseSolution v$installedVersion is already installed"
+        Write-Info "BuildDataversePCFSolution v$installedVersion is already installed"
         
         if ($installedVersion -eq $BUILDSOLUTION_VERSION) {
             if (-not $Force) {
@@ -205,8 +207,8 @@ try {
         }
     }
     
-    # Install/upgrade BuildDataverseSolution
-    $installSuccess = Install-BuildDataverseSolution -ProjectPath $ProjectPath -IsUpgrade $isUpgrade
+    # Install/upgrade BuildDataversePCFSolution
+    $installSuccess = Install-BuildDataversePCFSolution -ProjectPath $ProjectPath -IsUpgrade $isUpgrade
     
     if (-not $installSuccess) {
         exit 1
@@ -217,21 +219,21 @@ try {
         Write-Header "Running Setup"
         Write-Info "Starting interactive setup..."
         
-        $setupScript = Join-Path $ProjectPath "BuildDataverseSolution\setup-project.ps1"
+        $setupScript = Join-Path $ProjectPath "BuildDataversePCFSolution\setup-project.ps1"
         if (Test-Path $setupScript) {
             & $setupScript -ProjectPath $ProjectPath
         } else {
             Write-Warning "Setup script not found. You can run it manually later:"
-            Write-Info ".\BuildDataverseSolution\setup-project.ps1"
+            Write-Info ".\BuildDataversePCFSolution\setup-project.ps1"
         }
     } else {
         Write-Info "Setup skipped. You can run it manually later:"
-        Write-Info ".\BuildDataverseSolution\setup-project.ps1"
+        Write-Info ".\BuildDataversePCFSolution\setup-project.ps1"
     }
     
     Write-Header "Installation Complete"
-    Write-Success "BuildDataverseSolution is ready to use!"
-    Write-Info "Documentation: .\BuildDataverseSolution\GETTING-STARTED.md"
+    Write-Success "BuildDataversePCFSolution is ready to use!"
+    Write-Info "Documentation: .\BuildDataversePCFSolution\GETTING-STARTED.md"
     
 } catch {
     Write-Error "Installation failed: $($_.Exception.Message)"

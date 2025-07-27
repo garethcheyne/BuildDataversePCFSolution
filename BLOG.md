@@ -19,9 +19,9 @@ What started as a weekend side project to solve my own problems turned into some
 
 ## Overview
 
-**BuildDataverseSolution** is the result of that weekend coding session (okay, maybe it took a few weekends). It's a powerful, YAML-driven build system that transforms the way developers build, package, and deploy PCF controls to the Power Platform. Born from my own frustration with repetitive build processes, this tool provides a complete CI/CD pipeline from source code to deployable Power Platform solutions.
+**BuildDataversePCFSolution** is the result of that weekend coding session (okay, maybe it took a few weekends). It's a powerful, YAML-driven build system that transforms the way developers build, package, and deploy PCF controls to the Power Platform. Born from my own frustration with repetitive build processes, this tool provides a complete CI/CD pipeline from source code to deployable Power Platform solutions.
 
-🔗 **GitHub Repository**: [garethcheyne/BuildDataverseSolution](https://github.com/garethcheyne/BuildDataverseSolution)
+🔗 **GitHub Repository**: [garethcheyne/BuildDataversePCFSolution](https://github.com/garethcheyne/BuildDataversePCFSolution)
 
 ## The Problem It Solves
 
@@ -37,7 +37,7 @@ Developing PCF controls traditionally involves multiple manual steps:
 
 Each project required custom scripts, and developers often copied and modified build processes across projects, leading to inconsistency and maintenance overhead.
 
-## The BuildDataverseSolution Approach
+## The BuildDataversePCFSolution Approach
 
 This tool revolutionizes PCF development by providing:
 
@@ -60,10 +60,10 @@ build:
 Install directly from GitHub in any PCF project:
 ```powershell
 # Windows (PowerShell)
-irm https://raw.githubusercontent.com/garethcheyne/BuildDataverseSolution/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/garethcheyne/BuildDataversePCFSolution/main/install.ps1 | iex
 
 # macOS/Linux (Bash)
-curl -s https://raw.githubusercontent.com/garethcheyne/BuildDataverseSolution/main/install.sh | bash
+curl -s https://raw.githubusercontent.com/garethcheyne/BuildDataversePCFSolution/main/install.sh | bash
 ```
 
 ### ⚡ **Single Command Build**
@@ -87,10 +87,10 @@ Built-in support for:
 - **Local Development**: Rich console output with colors and formatting
 
 ### 📦 **Version-Aware Packaging**
-Automatically generates versioned packages:
+Automatically generates versioned packages in a dedicated releases directory:
 ```
-MyPCFControl_v1.0.0_managed.zip
-MyPCFControl_v1.0.0_unmanaged.zip
+releases/MyPCFControl_v1.0.0_managed.zip
+releases/MyPCFControl_v1.0.0_unmanaged.zip
 ```
 
 ### 🛠️ **Intelligent Automation**
@@ -107,7 +107,7 @@ Works seamlessly across:
 
 ## Architecture
 
-The BuildDataverseSolution system consists of several key components:
+The BuildDataversePCFSolution system consists of several key components:
 
 ### Core Build Engine (`build-solution.ps1`)
 The PowerShell-based build engine that:
@@ -127,7 +127,8 @@ A comprehensive YAML configuration that defines:
 
 ### Installation System
 Cross-platform installers that:
-- Download and install BuildDataverseSolution files
+- Download and install BuildDataversePCFSolution files
+- Check and install PCF development prerequisites (Node.js, .NET, PAC CLI)
 - Validate PCF project structure
 - Update package.json with boom script
 - Create default solution.yaml configuration
@@ -142,11 +143,11 @@ Environment-aware features:
 
 ### Development Workflow
 ```bash
-# 1. Create your PCF control (standard PCF CLI)
-pac pcf init --namespace MyNamespace --name MyControl --template field
+# 1. Install BuildDataversePCFSolution (includes environment setup)
+irm https://raw.githubusercontent.com/garethcheyne/BuildDataversePCFSolution/main/install.ps1 | iex
 
-# 2. Install BuildDataverseSolution
-irm https://raw.githubusercontent.com/garethcheyne/BuildDataverseSolution/main/install.ps1 | iex
+# 2. Create your PCF control (automated with environment checks)
+npm run create-pcf
 
 # 3. Customize solution.yaml (optional)
 # Edit publisher info, solution name, build settings
@@ -160,23 +161,26 @@ npm run boom
 # GitHub Actions example
 - name: Build PCF Solution
   run: |
-    # BuildDataverseSolution auto-detects GitHub Actions
+    # BuildDataversePCFSolution auto-detects GitHub Actions
     npm run boom
     
 - name: Upload Artifacts
   uses: actions/upload-artifact@v3
   with:
     name: pcf-solutions
-    path: "*.zip"
+    path: "releases/*.zip"
 ```
 
 ### Multiple Environments
 ```bash
+# Check environment and dependencies
+npm run boomcheck
+
 # Development (unmanaged only)
-.\BuildDataverseSolution\build-solution.ps1 -SolutionType "Unmanaged"
+.\BuildDataversePCFSolution\build-solution.ps1 -SolutionType "Unmanaged"
 
 # Production (managed only)  
-.\BuildDataverseSolution\build-solution.ps1 -SolutionType "Managed" -BuildConfiguration "Release"
+.\BuildDataversePCFSolution\build-solution.ps1 -SolutionType "Managed" -BuildConfiguration "Release"
 
 # Complete package (both types)
 npm run boom  # Uses solution.yaml defaults
@@ -234,7 +238,7 @@ validation:
 
 ## Community and Contributions
 
-BuildDataverseSolution is an open-source project welcoming contributions:
+BuildDataversePCFSolution is an open-source project welcoming contributions:
 
 - **Issues**: Report bugs or request features on GitHub
 - **Pull Requests**: Contribute improvements and new features  
@@ -254,7 +258,7 @@ The entire process takes less than 5 minutes and immediately transforms your dev
 
 ## Future Roadmap
 
-The BuildDataverseSolution project continues to evolve with planned features:
+The BuildDataversePCFSolution project continues to evolve with planned features:
 
 - **Multi-Control Solutions**: Support for solutions containing multiple PCF controls
 - **Environment Promotion**: Tools for promoting solutions across environments
@@ -264,23 +268,23 @@ The BuildDataverseSolution project continues to evolve with planned features:
 
 ## Conclusion
 
-BuildDataverseSolution represents a paradigm shift in PCF control development. By abstracting away the complexity of build processes and providing a standardized, YAML-driven approach, it allows developers to focus on what matters most: creating amazing Power Apps experiences.
+BuildDataversePCFSolution represents a paradigm shift in PCF control development. By abstracting away the complexity of build processes and providing a standardized, YAML-driven approach, it allows developers to focus on what matters most: creating amazing Power Apps experiences.
 
-Whether you're a solo developer working on personal projects or part of an enterprise team building mission-critical solutions, BuildDataverseSolution provides the tools, flexibility, and reliability needed to succeed in the modern Power Platform ecosystem.
+Whether you're a solo developer working on personal projects or part of an enterprise team building mission-critical solutions, BuildDataversePCFSolution provides the tools, flexibility, and reliability needed to succeed in the modern Power Platform ecosystem.
 
 ---
 
-*Ready to transform your PCF development workflow? Visit the [BuildDataverseSolution GitHub repository](https://github.com/garethcheyne/BuildDataverseSolution) to get started today.*
+*Ready to transform your PCF development workflow? Visit the [BuildDataversePCFSolution GitHub repository](https://github.com/garethcheyne/BuildDataversePCFSolution) to get started today.*
 
 ---
 
 ## About the Author
 
-Hi there! I'm Gareth, the developer behind BuildDataverseSolution. When I'm not busy juggling multiple projects across different tech stacks (seriously, some days I feel like I need a roadmap just to remember which IDE I'm supposed to be using), I enjoy creating tools that make my life - and hopefully yours - a bit easier.
+Hi there! I'm Gareth, the developer behind BuildDataversePCFSolution. When I'm not busy juggling multiple projects across different tech stacks (seriously, some days I feel like I need a roadmap just to remember which IDE I'm supposed to be using), I enjoy creating tools that make my life - and hopefully yours - a bit easier.
 
 This project started as a classic weekend "I wonder if I can automate this..." moment and evolved into something I use in every PCF project I work on. As an internal developer, I've learned that the best tools are the ones you actually want to use, not the ones you have to use.
 
-I built BuildDataverseSolution because I was tired of:
+I built BuildDataversePCFSolution because I was tired of:
 - Forgetting the exact sequence of commands needed for PCF deployment
 - Copy-pasting build scripts between projects (and inevitably breaking something)  
 - Spending more time setting up builds than actually writing code
@@ -290,10 +294,10 @@ The tool you see today is the result of countless "Oh, I should add this feature
 
 If you're like me and prefer writing code to wrestling with build configurations, I think you'll find this tool as useful as I do. And if you find ways to make it even better, please let me know - I'm always looking for ways to make my future self's life easier!
 
-Feel free to reach out if you have questions, suggestions, or just want to chat about PCF development. You can find me on GitHub or through the issues section of the BuildDataverseSolution repository.
+Feel free to reach out if you have questions, suggestions, or just want to chat about PCF development. You can find me on GitHub or through the issues section of the BuildDataversePCFSolution repository.
 
 *Last updated: July 27, 2025*
 
 ---
 
-*Ready to transform your PCF development workflow? Visit the [BuildDataverseSolution GitHub repository](https://github.com/garethcheyne/BuildDataverseSolution) to get started today.*
+*Ready to transform your PCF development workflow? Visit the [BuildDataversePCFSolution GitHub repository](https://github.com/garethcheyne/BuildDataversePCFSolution) to get started today.*

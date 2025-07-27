@@ -11,9 +11,102 @@ $ErrorActionPreference = "Stop"
 # Color functions for output
 function Write-Header { param($Message) Write-Host "`n=== $Message ===" -ForegroundColor Magenta }
 function Write-Info { param($Message) Write-Host "INFO: $Message" -ForegroundColor Cyan }
-function Write-Success { param($Message) Write-Host "✅ SUCCESS: $Message" -ForegroundColor Green }
-function Write-Warning { param($Message) Write-Host "⚠️  WARNING: $Message" -ForegroundColor Yellow }
-function Write-Error { param($Message) Write-Host "❌ ERROR: $Message" -ForegroundColor Red }
+function Write-Success { param($Message) Write-Host "[OK] SUCCESS: $Message" -ForegroundColor Green }
+function Write-Warning { param($Message) Write-Host "[!] WARNING: $Message" -ForegroundColor Yellow }
+function Write-Error { param($Message) Write-Host "[X] ERROR: $Message" -ForegroundColor Red }
+
+# Function to add BuildDataversePCFSolution scripts to package.json
+function Add-BoomScriptToPackageJson {
+    param(
+        [string]$ProjectPath,
+        [string]$SolutionName
+    )
+    
+    $packageJsonPath = Join-Path $ProjectPath "package.json"
+    
+    if (-not (Test-Path $packageJsonPath)) {
+        Write-Warning "package.json not found in project directory"
+        return $false
+    }
+    
+    try {
+        $packageContent = Get-Content $packageJsonPath -Raw | ConvertFrom-Json
+        
+        # Ensure scripts section exists
+        if (-not $packageContent.scripts) {
+            $packageContent | Add-Member -Type NoteProperty -Name "scripts" -Value @{}
+        }
+        
+        # Add BuildDataversePCFSolution scripts
+        $scriptsToAdd = @{
+            "boom" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/build-solution.ps1 -BuildConfiguration Release"
+            "boom-debug" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/build-solution.ps1 -BuildConfiguration Debug"
+            "boom-managed" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/build-solution.ps1 -BuildConfiguration Release -PackageType Managed"
+            "boom-unmanaged" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/build-solution.ps1 -BuildConfiguration Release -PackageType Unmanaged"
+            "boom-check" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/environment-check.ps1"
+            "boom-create" = "pwsh -ExecutionPolicy Bypass -File BuildDataversePCFSolution/create-pcf-project.ps1"
+        }
+        
+        $scriptsAdded = 0
+        foreach ($scriptName in $scriptsToAdd.Keys) {
+            if (-not $packageContent.scripts.$scriptName) {
+                $packageContent.scripts | Add-Member -Type NoteProperty -Name $scriptName -Value $scriptsToAdd[$scriptName] -Force
+                $scriptsAdded++
+            }
+        }
+        
+        # Convert back to JSON with proper formatting and tab indentation
+        $jsonOutput = $packageContent | ConvertTo-Json -Depth 100
+        
+        # Create properly beautified JSON with consistent tab indentation
+        $lines = $jsonOutput -split "`r?`n"
+        $beautifiedLines = @()
+        $indentLevel = 0
+        
+        foreach ($line in $lines) {
+            $trimmedLine = $line.Trim()
+            
+            # Decrease indent for closing braces/brackets
+            if ($trimmedLine -match '^[}\]]') {
+                $indentLevel = [Math]::Max(0, $indentLevel - 1)
+            }
+            
+            # Add proper tab indentation
+            $indent = "`t" * $indentLevel
+            $beautifiedLines += "$indent$trimmedLine"
+            
+            # Increase indent for opening braces/brackets
+            if ($trimmedLine -match '[{[]$') {
+                $indentLevel++
+            }
+        }
+        
+        $jsonOutput = $beautifiedLines -join "`r`n"
+        
+        # Ensure proper line endings and save
+        $jsonOutput | Set-Content -Path $packageJsonPath -Encoding UTF8 -NoNewline
+        Add-Content -Path $packageJsonPath -Value "`r`n" -Encoding UTF8 -NoNewline
+        
+        if ($scriptsAdded -gt 0) {
+            Write-Success "Added $scriptsAdded BuildDataversePCFSolution scripts to package.json"
+            Write-Host "   Available scripts:" -ForegroundColor DarkGray
+            Write-Host "   -> npm run boom           - Quick Release build" -ForegroundColor Cyan
+            Write-Host "   -> npm run boom-debug     - Quick Debug build" -ForegroundColor Cyan  
+            Write-Host "   -> npm run boom-managed   - Build managed solution only" -ForegroundColor Cyan
+            Write-Host "   -> npm run boom-unmanaged - Build unmanaged solution only" -ForegroundColor Cyan
+            Write-Host "   -> npm run boom-check     - Check development environment" -ForegroundColor Cyan
+            Write-Host "   -> npm run boom-create    - Create new PCF project" -ForegroundColor Cyan
+        } else {
+            Write-Info "All BuildDataversePCFSolution scripts already exist in package.json"
+        }
+        
+        return $true
+    }
+    catch {
+        Write-Error "Failed to update package.json: $($_.Exception.Message)"
+        return $false
+    }
+}
 
 # Function to prompt for input with default value
 function Get-UserInput {
@@ -34,7 +127,7 @@ function Get-UserInput {
     if ($Required) {
         $promptText += " *"
     }
-    $promptText += ": "
+    # Note: Read-Host automatically adds ": " so we don't add it here
     
     do {
         Write-Host "-> " -NoNewline -ForegroundColor Cyan
@@ -199,49 +292,7 @@ function Update-PackageJsonVersion {
     }
 }
 
-function Add-BoomScriptToPackageJson {
-    param(
-        [string]$ProjectPath,
-        [string]$SolutionName
-    )
-    
-    $packageJsonPath = Join-Path $ProjectPath "package.json"
-    if (-not (Test-Path $packageJsonPath)) {
-        Write-Warning "package.json not found at $packageJsonPath"
-        return $false
-    }
-    
-    try {
-        # Read and parse the package.json
-        $content = Get-Content $packageJsonPath -Raw
-        $packageJson = $content | ConvertFrom-Json
-        
-        # Add the boom script
-        $boomScript = "powershell -File `".\BuildDataverseSolution\build-solution.ps1`" -BuildConfiguration `"Release`""
-        
-        # Ensure scripts object exists
-        if (-not $packageJson.scripts) {
-            $packageJson | Add-Member -MemberType NoteProperty -Name "scripts" -Value @{}
-        }
-        
-        # Add the boom script
-        $packageJson.scripts | Add-Member -MemberType NoteProperty -Name "boom" -Value $boomScript -Force
-        
-        # Convert back to JSON with proper formatting
-        $jsonOutput = $packageJson | ConvertTo-Json -Depth 10
-        
-        # Write back to file
-        Set-Content -Path $packageJsonPath -Value $jsonOutput
-        
-        Write-Success "Added 'boom' script to package.json"
-        Write-Info "You can now run: npm run boom"
-        return $true
-    }
-    catch {
-        Write-Error "Failed to add boom script to package.json: $($_.Exception.Message)"
-        return $false
-    }
-}
+
 
 function Get-SuggestedVersionBump {
     param([string]$CurrentVersion)
@@ -341,6 +392,74 @@ function Get-GitRepositoryInfo {
     }
     
     return $gitInfo
+}
+
+# Function to read existing solution.yaml configuration
+function Get-ExistingSolutionConfig {
+    param([string]$ProjectPath)
+    
+    $config = @{
+        SolutionName = ""
+        DisplayName = ""
+        Description = ""
+        Version = ""
+        PublisherName = ""
+        PublisherDisplayName = ""
+        PublisherPrefix = ""
+        PublisherDescription = ""
+        NodeVersion = ""
+        DotnetVersion = ""
+    }
+    
+    $yamlPath = Join-Path $ProjectPath "solution.yaml"
+    if (-not (Test-Path $yamlPath)) {
+        return $config
+    }
+    
+    try {
+        $yamlContent = Get-Content $yamlPath -Raw
+        
+        # Simple YAML parsing for our specific structure
+        if ($yamlContent -match 'name:\s*["]?([^"\r\n]+)["]?') {
+            $config.SolutionName = $matches[1].Trim()
+        }
+        if ($yamlContent -match 'displayName:\s*["]?([^"\r\n]+)["]?') {
+            $config.DisplayName = $matches[1].Trim()
+        }
+        if ($yamlContent -match 'description:\s*["]?([^"\r\n]+)["]?') {
+            $config.Description = $matches[1].Trim()
+        }
+        if ($yamlContent -match 'version:\s*["]?([^"\r\n]+)["]?') {
+            $config.Version = $matches[1].Trim()
+        }
+        
+        # Publisher information
+        if ($yamlContent -match 'publisher:[\r\n]+\s+name:\s*["]?([^"\r\n]+)["]?') {
+            $config.PublisherName = $matches[1].Trim()
+        }
+        if ($yamlContent -match 'publisher:[\r\n]+(?:.*[\r\n]+)*?\s+displayName:\s*["]?([^"\r\n]+)["]?') {
+            $config.PublisherDisplayName = $matches[1].Trim()
+        }
+        if ($yamlContent -match 'publisher:[\r\n]+(?:.*[\r\n]+)*?\s+prefix:\s*["]?([^"\r\n]+)["]?') {
+            $config.PublisherPrefix = $matches[1].Trim()
+        }
+        if ($yamlContent -match 'publisher:[\r\n]+(?:.*[\r\n]+)*?\s+description:\s*["]?([^"\r\n]+)["]?') {
+            $config.PublisherDescription = $matches[1].Trim()
+        }
+        
+        # Build configuration
+        if ($yamlContent -match 'nodeVersion:\s*["]?([^"\r\n]+)["]?') {
+            $config.NodeVersion = $matches[1].Trim()
+        }
+        if ($yamlContent -match 'dotnetVersion:\s*["]?([^"\r\n]+)["]?') {
+            $config.DotnetVersion = $matches[1].Trim()
+        }
+    }
+    catch {
+        Write-Verbose "Could not parse solution.yaml: $($_.Exception.Message)"
+    }
+    
+    return $config
 }
 
 # Function to extract information from ControlManifest.Input.xml
@@ -523,11 +642,23 @@ try {
         Write-Host ""
     }
     
-    # Use manifest info for better defaults
-    $defaultSolutionName = if ($manifestInfo.Constructor) { $manifestInfo.Constructor } else { "PCFSolution" }
-    $defaultDisplayName = if ($manifestInfo.DisplayName) { $manifestInfo.DisplayName } else { $defaultSolutionName }
-    $defaultDescription = if ($manifestInfo.Description) { $manifestInfo.Description } else { "A Power Apps Component Framework control" }
-    $defaultPublisherPrefix = if ($manifestInfo.Namespace) { $manifestInfo.Namespace.ToLower() } else { "pcf" }
+    # Get existing solution configuration
+    $existingConfig = Get-ExistingSolutionConfig -ProjectPath $ProjectPath
+    
+    # Use manifest info and existing solution.yaml for better defaults
+    $defaultSolutionName = if ($existingConfig.SolutionName) { $existingConfig.SolutionName } elseif ($manifestInfo.Constructor) { $manifestInfo.Constructor } else { "PCFSolution" }
+    $defaultDisplayName = if ($existingConfig.DisplayName) { $existingConfig.DisplayName } elseif ($manifestInfo.DisplayName) { $manifestInfo.DisplayName } else { $defaultSolutionName }
+    $defaultDescription = if ($existingConfig.Description) { $existingConfig.Description } elseif ($manifestInfo.Description) { $manifestInfo.Description } else { "A Power Apps Component Framework control" }
+    $defaultPublisherPrefix = if ($existingConfig.PublisherPrefix) { $existingConfig.PublisherPrefix } elseif ($manifestInfo.Namespace) { $manifestInfo.Namespace.ToLower() } else { "pcf" }
+    
+    # Publisher defaults from existing solution.yaml
+    $defaultPublisherName = if ($existingConfig.PublisherName) { $existingConfig.PublisherName } else { "DefaultPublisher" }
+    $defaultPublisherDisplayName = if ($existingConfig.PublisherDisplayName) { $existingConfig.PublisherDisplayName } else { $defaultPublisherName }
+    $defaultPublisherDescription = if ($existingConfig.PublisherDescription) { $existingConfig.PublisherDescription } else { "Custom PCF controls and Power Platform solutions" }
+    
+    # Build configuration defaults
+    $defaultNodeVersion = if ($existingConfig.NodeVersion) { $existingConfig.NodeVersion } else { "18" }
+    $defaultDotnetVersion = if ($existingConfig.DotnetVersion) { $existingConfig.DotnetVersion } else { "6.0.x" }
     
     Write-Host ""
     Write-Host "SOLUTION CONFIGURATION" -ForegroundColor Blue -BackgroundColor Black
@@ -543,10 +674,10 @@ try {
     Write-Host ""
     Write-Host "Publisher Information:" -ForegroundColor Yellow
     
-    $publisherName = Get-UserInput -Prompt "   Publisher name (your name or company)" -DefaultValue "DefaultPublisher" -Required
-    $publisherDisplayName = Get-UserInput -Prompt "   Publisher display name" -DefaultValue $publisherName
+    $publisherName = Get-UserInput -Prompt "   Publisher name (your name or company)" -DefaultValue $defaultPublisherName -Required
+    $publisherDisplayName = Get-UserInput -Prompt "   Publisher display name" -DefaultValue $defaultPublisherDisplayName
     $publisherPrefix = Get-UserInput -Prompt "   Publisher prefix (2-8 characters)" -DefaultValue $defaultPublisherPrefix -Required
-    $publisherDescription = Get-UserInput -Prompt "   Publisher description" -DefaultValue "Custom PCF controls and Power Platform solutions"
+    $publisherDescription = Get-UserInput -Prompt "   Publisher description" -DefaultValue $defaultPublisherDescription
     
     # CI/CD Platform Selection with intelligent defaults
     Write-Host ""
@@ -661,8 +792,8 @@ try {
     Write-Host ""
     
     Write-Host "Runtime Versions:" -ForegroundColor Yellow
-    $nodeVersion = Get-UserInput -Prompt "   Node.js version" -DefaultValue "18"
-    $dotnetVersion = Get-UserInput -Prompt "   .NET version" -DefaultValue "6.0.x"
+    $nodeVersion = Get-UserInput -Prompt "   Node.js version" -DefaultValue $defaultNodeVersion
+    $dotnetVersion = Get-UserInput -Prompt "   .NET version" -DefaultValue $defaultDotnetVersion
     
     Write-Host ""
     Write-Host "Build Options:" -ForegroundColor Yellow
@@ -757,24 +888,16 @@ environment:
 # Custom Scripts (optional)
 scripts:
   # Pre-build script (PowerShell)
-  preBuild: |
-    Write-Host "Starting pre-build validation for $displayName..."
-    # Add custom pre-build logic here
+  preBuild: "Write-Host 'Starting pre-build validation for $displayName...'"
   
   # Post-build script (PowerShell)
-  postBuild: |
-    Write-Host "Running post-build validation..."
-    # Add custom post-build logic here
+  postBuild: "Write-Host 'Running post-build validation...'"
   
   # Pre-package script (PowerShell)
-  prePackage: |
-    Write-Host "Preparing $displayName package..."
-    # Add custom pre-package logic here
+  prePackage: "Write-Host 'Preparing $displayName package...'"
   
   # Post-package script (PowerShell)
-  postPackage: |
-    Write-Host "$displayName package created successfully!"
-    # Add custom post-package logic here
+  postPackage: "Write-Host '$displayName package created successfully!'"
 
 # Logging Configuration
 logging:
@@ -808,24 +931,52 @@ logging:
         Write-Host "   -> This will build and package your solution in Release mode" -ForegroundColor DarkGray
     }
     
-    # Copy build script
-    $buildScriptSource = Join-Path $PSScriptRoot "build-solution.ps1"
-    $buildScriptDest = Join-Path $ProjectPath "BuildDataverseSolution\build-solution.ps1"
+    # Copy BuildDataversePCFSolution scripts
+    Write-Host ""
+    Write-Host "COPYING BUILDDATAVERSEPCFSOLUTION SCRIPTS" -ForegroundColor DarkCyan -BackgroundColor Black
+    Write-Host "===============================================================" -ForegroundColor DarkCyan
+    Write-Host ""
     
-    if (-not (Test-Path (Join-Path $ProjectPath "BuildDataverseSolution"))) {
-        New-Item -Path (Join-Path $ProjectPath "BuildDataverseSolution") -ItemType Directory -Force | Out-Null
+    $buildDir = Join-Path $ProjectPath "BuildDataversePCFSolution"
+    if (-not (Test-Path $buildDir)) {
+        New-Item -Path $buildDir -ItemType Directory -Force | Out-Null
     }
     
-    if (Test-Path $buildScriptSource) {
-        # Only copy if source and destination are different
-        if ($buildScriptSource -ne $buildScriptDest) {
-            Copy-Item $buildScriptSource $buildScriptDest -Force
-            Write-Success "Copied build-solution.ps1 to project"
+    # Copy all BuildDataversePCFSolution scripts
+    $scriptsToCopy = @(
+        "build-solution.ps1",
+        "environment-check.ps1", 
+        "create-pcf-project.ps1",
+        "install.ps1"
+    )
+    
+    $copiedScripts = 0
+    foreach ($scriptName in $scriptsToCopy) {
+        $scriptSource = Join-Path $PSScriptRoot $scriptName
+        $scriptDest = Join-Path $buildDir $scriptName
+        
+        if (Test-Path $scriptSource) {
+            # Only copy if source and destination are different
+            if ($scriptSource -ne $scriptDest) {
+                Copy-Item $scriptSource $scriptDest -Force
+                Write-Success "Copied $scriptName to project"
+                $copiedScripts++
+            } else {
+                Write-Info "$scriptName already in correct location"
+            }
         } else {
-            Write-Info "Build script already in correct location"
+            Write-Warning "Could not find $scriptName in BuildDataversePCFSolution directory"
         }
-    } else {
-        Write-Warning "Could not find build-solution.ps1 in BuildDataverseSolution directory"
+    }
+    
+    if ($copiedScripts -gt 0) {
+        Write-Host ""
+        Write-Host "SUCCESS: " -NoNewline -ForegroundColor Green
+        Write-Host "Copied $copiedScripts BuildDataversePCFSolution scripts!" -ForegroundColor Green
+        Write-Host "   -> Available commands:" -ForegroundColor DarkGray
+        Write-Host "      npm run boom-check - Check development environment" -ForegroundColor Cyan
+        Write-Host "      npm run boom-create - Create new PCF project" -ForegroundColor Cyan
+        Write-Host "      npm run boom - Quick Release build" -ForegroundColor Cyan
     }
     
     # Set up CI/CD files based on selection
@@ -882,9 +1033,9 @@ logging:
     
     # Copy documentation files
     $docFiles = @(
-        @{ Source = "GETTING-STARTED.md"; Dest = "BuildDataverseSolution\GETTING-STARTED.md" },
-        @{ Source = "TROUBLESHOOTING.md"; Dest = "BuildDataverseSolution\TROUBLESHOOTING.md" },
-        @{ Source = "README.md"; Dest = "BuildDataverseSolution\README.md" }
+        @{ Source = "GETTING-STARTED.md"; Dest = "BuildDataversePCFSolution\GETTING-STARTED.md" },
+        @{ Source = "TROUBLESHOOTING.md"; Dest = "BuildDataversePCFSolution\TROUBLESHOOTING.md" },
+        @{ Source = "README.md"; Dest = "BuildDataversePCFSolution\README.md" }
     )
     
     foreach ($docFile in $docFiles) {
@@ -915,9 +1066,12 @@ logging:
     Write-Host ""
     Write-Host "FILES CREATED:" -ForegroundColor Yellow
     Write-Host "   -> solution.yaml configuration file" -ForegroundColor White
-    Write-Host "   -> BuildDataverseSolution/build-solution.ps1 build script" -ForegroundColor White
-    Write-Host "   -> BuildDataverseSolution/ documentation and guides" -ForegroundColor White
-    Write-Host "   -> package.json updated with 'boom' script" -ForegroundColor White
+    Write-Host "   -> BuildDataversePCFSolution/build-solution.ps1 build engine" -ForegroundColor White
+    Write-Host "   -> BuildDataversePCFSolution/environment-check.ps1 environment validator" -ForegroundColor White
+    Write-Host "   -> BuildDataversePCFSolution/create-pcf-project.ps1 project creator" -ForegroundColor White
+    Write-Host "   -> BuildDataversePCFSolution/install.ps1 system installer" -ForegroundColor White
+    Write-Host "   -> BuildDataversePCFSolution/ documentation and guides" -ForegroundColor White
+    Write-Host "   -> package.json updated with BuildDataversePCFSolution scripts" -ForegroundColor White
     
     if ($setupGitHub) {
         Write-Host "   -> .github/workflows/build-and-release.yml GitHub Actions" -ForegroundColor White
@@ -939,30 +1093,50 @@ logging:
     Write-Host ""
     
     Write-Host "1. " -NoNewline -ForegroundColor Yellow
-    Write-Host "Test locally first (ALWAYS do this!):" -ForegroundColor Yellow
-    Write-Host "   Option A - Quick build: " -NoNewline -ForegroundColor DarkGray
+    Write-Host "Check your development environment:" -ForegroundColor Yellow
+    Write-Host "   Environment check: " -NoNewline -ForegroundColor DarkGray
+    Write-Host "npm run boom-check" -ForegroundColor Cyan
+    Write-Host "   -> Validates Node.js, .NET, PAC CLI, Git installations" -ForegroundColor DarkGray
+    Write-Host "   -> Automatically installs missing dependencies (Windows)" -ForegroundColor DarkGray
+    
+    Write-Host ""
+    Write-Host "2. " -NoNewline -ForegroundColor Yellow
+    Write-Host "Test build locally (ALWAYS do this!):" -ForegroundColor Yellow
+    Write-Host "   Quick Release build: " -NoNewline -ForegroundColor DarkGray
     Write-Host "npm run boom" -ForegroundColor Cyan
-    Write-Host "   Option B - Manual build: " -NoNewline -ForegroundColor DarkGray
-    Write-Host ".\BuildDataverseSolution\build-solution.ps1 -BuildConfiguration `"Debug`"" -ForegroundColor White
-    Write-Host "   -> Should create " -NoNewline -ForegroundColor DarkGray
-    Write-Host "$solutionName.zip" -NoNewline -ForegroundColor Cyan
-    Write-Host " in your project root" -ForegroundColor DarkGray
+    Write-Host "   Quick Debug build: " -NoNewline -ForegroundColor DarkGray
+    Write-Host "npm run boom-debug" -ForegroundColor Cyan
+    Write-Host "   Managed solution only: " -NoNewline -ForegroundColor DarkGray
+    Write-Host "npm run boom-managed" -ForegroundColor Cyan
+    Write-Host "   Unmanaged solution only: " -NoNewline -ForegroundColor DarkGray
+    Write-Host "npm run boom-unmanaged" -ForegroundColor Cyan
+    Write-Host "   -> Creates versioned ZIP files in " -NoNewline -ForegroundColor DarkGray
+    Write-Host "releases/" -NoNewline -ForegroundColor Cyan
+    Write-Host " directory" -ForegroundColor DarkGray
+    
+    Write-Host ""
+    Write-Host "3. " -NoNewline -ForegroundColor Yellow
+    Write-Host "Create additional PCF projects:" -ForegroundColor Yellow
+    Write-Host "   Project creator: " -NoNewline -ForegroundColor DarkGray
+    Write-Host "npm run boom-create" -ForegroundColor Cyan
+    Write-Host "   -> Interactive PCF project creation with templates" -ForegroundColor DarkGray
+    Write-Host "   -> Automatic BuildDataversePCFSolution integration" -ForegroundColor DarkGray
     
     if ($setupGitHub) {
         Write-Host ""
-        Write-Host "2. " -NoNewline -ForegroundColor Yellow
+        Write-Host "4. " -NoNewline -ForegroundColor Yellow
         Write-Host "GitHub Actions workflow:" -ForegroundColor Yellow
         Write-Host "   -> Commit and push: " -NoNewline -ForegroundColor DarkGray
-        Write-Host "git add . && git commit -m `"Add CI/CD`" && git push" -ForegroundColor White
+        Write-Host "git add . && git commit -m `"Add BuildDataversePCFSolution`" && git push" -ForegroundColor White
         Write-Host "   -> Check Actions tab in GitHub to see build progress" -ForegroundColor DarkGray
         Write-Host "   -> Create release: " -NoNewline -ForegroundColor DarkGray
         Write-Host "git tag v1.0.0 && git push origin v1.0.0" -ForegroundColor White
-        Write-Host "   -> GitHub will automatically create release with solution package" -ForegroundColor DarkGray
+        Write-Host "   -> GitHub will automatically create release with solution packages" -ForegroundColor DarkGray
     }
     
     if ($setupDevOps) {
         Write-Host ""
-        Write-Host "2. " -NoNewline -ForegroundColor Yellow
+        Write-Host "4. " -NoNewline -ForegroundColor Yellow
         Write-Host "Azure DevOps setup:" -ForegroundColor Yellow
         Write-Host "   -> Go to Azure DevOps -> Pipelines -> New Pipeline" -ForegroundColor DarkGray
         Write-Host "   -> Choose your repo -> Existing Azure Pipelines YAML -> /azure-pipelines.yml" -ForegroundColor DarkGray
@@ -970,18 +1144,24 @@ logging:
     }
     
     Write-Host ""
-    Write-Host "3. " -NoNewline -ForegroundColor Yellow
-    Write-Host "Configuration:" -ForegroundColor Yellow
+    Write-Host "5. " -NoNewline -ForegroundColor Yellow
+    Write-Host "Configuration and advanced usage:" -ForegroundColor Yellow
     Write-Host "   -> Edit " -NoNewline -ForegroundColor DarkGray
     Write-Host "solution.yaml" -NoNewline -ForegroundColor Cyan
-    Write-Host " to add custom scripts or validation" -ForegroundColor DarkGray
+    Write-Host " to customize build behavior" -ForegroundColor DarkGray
     Write-Host "   -> See " -NoNewline -ForegroundColor DarkGray
-    Write-Host "BuildDataverseSolution/GETTING-STARTED.md" -NoNewline -ForegroundColor Cyan
-    Write-Host " for detailed help" -ForegroundColor DarkGray
+    Write-Host "BuildDataversePCFSolution/GETTING-STARTED.md" -NoNewline -ForegroundColor Cyan
+    Write-Host " for detailed documentation" -ForegroundColor DarkGray
+    Write-Host "   -> Use " -NoNewline -ForegroundColor DarkGray
+    Write-Host "BuildDataversePCFSolution/TROUBLESHOOTING.md" -NoNewline -ForegroundColor Cyan
+    Write-Host " for common issues" -ForegroundColor DarkGray
     
     Write-Host ""
     Write-Host "SUCCESS: " -NoNewline -ForegroundColor Green
-    Write-Host "Setup completed successfully! Your PCF project is ready for CI/CD." -ForegroundColor Green
+    Write-Host "BuildDataversePCFSolution system ready! Your comprehensive PCF development environment is configured." -ForegroundColor Green
+    Write-Host ""
+    Write-Host "[*] " -NoNewline -ForegroundColor Yellow
+    Write-Host "Features available: Environment checking, automated builds, project creation, CI/CD integration" -ForegroundColor Yellow
     Write-Host ""
     
     return 0
