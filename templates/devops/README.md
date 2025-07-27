@@ -1,6 +1,6 @@
 # Azure DevOps Template
 
-This directory contains the Azure DevOps pipeline template for PCF BuildDataverseSolution.
+This directory contains the Azure DevOps pipeline template for PCF BuildDataversePCFSolution.
 
 ## Files
 
@@ -17,7 +17,7 @@ The setup script (`../setup-project.ps1`) automatically copies this file to your
 
 Manual setup:
 ```bash
-cp BuildDataverseSolution/templates/devops/azure-pipelines.yml .
+cp BuildDataversePCFSolution/templates/devops/azure-pipelines.yml .
 ```
 
 Then in Azure DevOps:
@@ -104,4 +104,4 @@ This pipeline works completely independently of GitHub:
 - Check **Build logs** in Azure DevOps for detailed error messages
 - Verify **Agent capabilities** (Node.js, .NET, PowerShell)
 - For GitHub releases, verify `GITHUB_TOKEN` variable is set correctly
-- Test locally first: `.\BuildDataverseSolution\build-solution.ps1 -CiMode DevOps`
+- Test locally first: `.\BuildDataversePCFSolution\build-solution.ps1 -CiMode DevOps`

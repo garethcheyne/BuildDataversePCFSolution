@@ -1,6 +1,6 @@
 # GitHub Actions Template
 
-This directory contains the GitHub Actions workflow template for PCF BuildDataverseSolution.
+This directory contains the GitHub Actions workflow template for PCF BuildDataversePCFSolution.
 
 ## Files
 
@@ -17,7 +17,7 @@ The setup script (`../setup-project.ps1`) automatically copies this file to your
 Manual setup:
 ```bash
 mkdir -p .github/workflows
-cp BuildDataverseSolution/templates/github/build-and-release.yml .github/workflows/
+cp BuildDataversePCFSolution/templates/github/build-and-release.yml .github/workflows/
 ```
 
 ## Features

@@ -8,8 +8,13 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
 env:
-  SOLUTION_NAME: PCFFluentUiAutoCompleteGooglePlaces
+  SOLUTION_NAME: MySolution
   
 jobs:
   build:
@@ -33,8 +38,17 @@ jobs:
     - name: Install Power Platform CLI
       run: dotnet tool install --global Microsoft.PowerApps.CLI.Tool
         
+    - name: Install BuildDataversePCFSolution
+      run: |
+        Write-Host "Installing BuildDataversePCFSolution..."
+        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/garethcheyne/BuildDataversePCFSolution/main/install.ps1" -OutFile "install-temp.ps1"
+        & ".\install-temp.ps1" -Force -SkipSetup
+        Remove-Item "install-temp.ps1"
+        Write-Host "BuildDataversePCFSolution installed successfully"
+      shell: pwsh
+        
     - name: Run build script
-      run: .\BuildDataverseSolution\build-solution.ps1 -BuildConfiguration "Release" -CiMode "GitHub"
+      run: .\BuildDataversePCFSolution\build-solution.ps1 -BuildConfiguration "Release" -CiMode "GitHub"
       shell: pwsh
         
     - name: Upload build artifacts
@@ -58,6 +72,9 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+      actions: read
     
     steps:
     - name: Checkout repository
@@ -81,33 +98,31 @@ jobs:
         tag_name: ${{ github.ref }}
         release_name: Release ${{ github.ref }}
         body: |
-          ## PCF FluentUI AutoComplete - Google Places ${{ github.ref }}
+          ## ${{ env.SOLUTION_NAME }} ${{ github.ref }}
           
           ### 🚀 What's New
-          - Enhanced Google Places API integration
-          - Interactive hover cards with Google Maps
-          - Country restriction toggle functionality
-          - Improved accessibility and performance
+          - Latest features and improvements
+          - Bug fixes and performance enhancements
+          - Updated dependencies and security patches
           
           ### 💾 Installation
           1. Download the solution package for your needs:
              - **Unmanaged**: For development environments
              - **Managed**: For production environments
           2. Import it into your Power Platform environment
-          3. Configure your Google Places API key
+          3. Configure the solution settings as needed
           4. Add the control to your forms or canvas apps
           
           ### 📋 Requirements
           - Power Platform environment with PCF controls enabled
-          - Google Places API key
-          - Places API and Maps JavaScript API enabled
+          - Appropriate permissions for solution import
           
           ### 🔧 Configuration
-          See the [README](https://github.com/garethcheyne/PCF-FluentUi-AutoComplete-GooglePlaces/blob/main/README.md) for detailed configuration instructions.
+          See the project README for detailed configuration instructions.
           
           ---
           
-          **Full Changelog**: https://github.com/garethcheyne/PCF-FluentUi-AutoComplete-GooglePlaces/compare/v1.0.0...${{ github.ref }}
+          **Built with automated CI/CD pipeline**
         draft: false
         prerelease: false
 
@@ -134,7 +149,12 @@ jobs:
   security-scan:
     runs-on: ubuntu-latest
     needs: build
+    # Security scanning only runs on push to main branch (not on PRs from forks)
     if: github.event_name == 'push'
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
     
     steps:
     - name: Checkout repository
@@ -150,6 +170,8 @@ jobs:
         
     - name: Upload Trivy scan results to GitHub Security tab
       uses: github/codeql-action/upload-sarif@v3
-      if: always()
+      # Only upload SARIF on push events (not PRs) and continue on error for permission issues
+      if: always() && github.event_name != 'pull_request'
       with:
         sarif_file: 'trivy-results.sarif'
+      continue-on-error: true

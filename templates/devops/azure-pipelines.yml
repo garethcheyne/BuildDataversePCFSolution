@@ -1,6 +1,6 @@
 # Azure DevOPS Pipeline for PCF Solution Build and Release
 # This pipeline builds and packages PCF controls into Power Platform solutions
-# Compatible with the BuildDataverseSolution system
+# Compatible with the BuildDataversePCFSolution system
 
 trigger:
   branches:
@@ -19,7 +19,7 @@ pr:
 
 variables:
   # These will be overridden by solution.yaml configuration
-  SOLUTION_NAME: 'PCFFluentUiAutoCompleteGooglePlaces'
+  SOLUTION_NAME: 'MySolution'
   BUILD_CONFIGURATION: 'Release'
   # Agent specification
   vmImageName: 'windows-latest'
@@ -62,6 +62,18 @@ stages:
         pwsh: true
     
     - task: PowerShell@2
+      displayName: 'Install BuildDataversePCFSolution'
+      inputs:
+        targetType: 'inline'
+        script: |
+          Write-Host "Installing BuildDataversePCFSolution..."
+          Invoke-WebRequest -Uri "https://raw.githubusercontent.com/garethcheyne/BuildDataversePCFSolution/main/install.ps1" -OutFile "install-temp.ps1"
+          & ".\install-temp.ps1" -Force -SkipSetup
+          Remove-Item "install-temp.ps1"
+          Write-Host "BuildDataversePCFSolution installed successfully"
+        pwsh: true
+    
+    - task: PowerShell@2
       displayName: 'Build PCF Solution'
       inputs:
         targetType: 'inline'
@@ -70,7 +82,7 @@ stages:
           Write-Host "Build Configuration: $(BUILD_CONFIGURATION)"
           
           # Execute the build script with DevOps-specific parameters
-          .\BuildDataverseSolution\build-solution.ps1 -BuildConfiguration "$(BUILD_CONFIGURATION)" -CiMode DevOps -Verbose
+          .\BuildDataversePCFSolution\build-solution.ps1 -BuildConfiguration "$(BUILD_CONFIGURATION)" -CiMode DevOps -Verbose
           
           Write-Host "Build completed successfully"
         pwsh: true
@@ -211,12 +223,12 @@ stages:
             inputs:
               targetType: 'inline'
               script: |
-                Write-Host "Creating GitHub release using BuildDataverseSolution script..."
+                Write-Host "Creating GitHub release using BuildDataversePCFSolution script..."
                 
                 # Add GitHub CLI to PATH
                 $env:PATH = "$(GH_PATH);$env:PATH"
                 
-                # Change to source directory where BuildDataverseSolution is located
+                # Change to source directory where BuildDataversePCFSolution is located
                 Set-Location "$(Build.SourcesDirectory)"
                 
                 # Find the solution packages in the downloaded artifacts
@@ -233,7 +245,7 @@ stages:
                 }
                 
                 # Execute the GitHub release script with the solution packages directory
-                $releaseResult = .\BuildDataverseSolution\create-github-release.ps1 `
+                $releaseResult = .\BuildDataversePCFSolution\create-github-release.ps1 `
                   -TagName "$(TAG_NAME)" `
                   -ArtifactPath "$solutionPackagesPath" `
                   -GitHubToken "$(GITHUB_TOKEN)"

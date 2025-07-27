@@ -1,10 +1,10 @@
-# CI/CD Setup Guide for PCF BuildDataverseSolution
+# CI/CD Setup Guide for PCF BuildDataversePCFSolution
 
-This guide explains how to set up the BuildDataverseSolution system for both GitHub Actions and Azure DevOps pipelines.
+This guide explains how to set up the BuildDataversePCFSolution system for both GitHub Actions and Azure DevOps pipelines.
 
 ## Overview
 
-The BuildDataverseSolution system supports multiple CI/CD platforms:
+The BuildDataversePCFSolution system supports multiple CI/CD platforms:
 
 - **GitHub Actions** - Fully supported with automatic release creation
 - **Azure DevOps** - Fully supported with build and artifact publishing
@@ -37,16 +37,16 @@ The BuildDataverseSolution system supports multiple CI/CD platforms:
 
 ### For GitHub Actions
 
-1. **Copy BuildDataverseSolution to your project:**
+1. **Copy BuildDataversePCFSolution to your project:**
    ```bash
-   # Copy the entire BuildDataverseSolution directory to your PCF project root
-   cp -r BuildDataverseSolution /path/to/your/pcf/project/
+   # Copy the entire BuildDataversePCFSolution directory to your PCF project root
+   cp -r BuildDataversePCFSolution /path/to/your/pcf/project/
    ```
 
 2. **Create solution.yaml configuration:**
    ```bash
    # Copy and customize the solution.yaml template
-   cp BuildDataverseSolution/solution-template.yaml solution.yaml
+   cp BuildDataversePCFSolution/solution-template.yaml solution.yaml
    # Edit solution.yaml with your project details
    ```
 
@@ -60,22 +60,22 @@ The BuildDataverseSolution system supports multiple CI/CD platforms:
 4. **Commit and push:**
    ```bash
    git add .
-   git commit -m "Add BuildDataverseSolution CI/CD system"
+   git commit -m "Add BuildDataversePCFSolution CI/CD system"
    git push
    ```
 
 ### For Azure DevOps
 
-1. **Copy BuildDataverseSolution to your project:**
+1. **Copy BuildDataversePCFSolution to your project:**
    ```bash
-   # Copy the entire BuildDataverseSolution directory to your PCF project root
-   cp -r BuildDataverseSolution /path/to/your/pcf/project/
+   # Copy the entire BuildDataversePCFSolution directory to your PCF project root
+   cp -r BuildDataversePCFSolution /path/to/your/pcf/project/
    ```
 
 2. **Create solution.yaml configuration:**
    ```bash
    # Copy and customize the solution.yaml template
-   cp BuildDataverseSolution/solution-template.yaml solution.yaml
+   cp BuildDataversePCFSolution/solution-template.yaml solution.yaml
    # Edit solution.yaml with your project details
    ```
 
@@ -249,13 +249,13 @@ Test your configuration locally before committing:
 
 ```powershell
 # Test with Debug configuration
-.\BuildDataverseSolution\build-solution.ps1 -BuildConfiguration "Debug"
+.\BuildDataversePCFSolution\build-solution.ps1 -BuildConfiguration "Debug"
 
 # Test with specific solution name
-.\BuildDataverseSolution\build-solution.ps1 -SolutionName "TestSolution" -BuildConfiguration "Debug"
+.\BuildDataversePCFSolution\build-solution.ps1 -SolutionName "TestSolution" -BuildConfiguration "Debug"
 
 # Test configuration validation only
-.\BuildDataverseSolution\build-solution.ps1 -ConfigFile "solution.yaml" -WhatIf
+.\BuildDataversePCFSolution\build-solution.ps1 -ConfigFile "solution.yaml" -WhatIf
 ```
 
 ### Validating CI/CD Integration
@@ -301,6 +301,22 @@ Test your configuration locally before committing:
 - Verify artifact upload paths
 - Ensure secrets are properly configured
 
+**Security Scanning Issues:**
+If you see "Resource not accessible by integration" errors during SARIF upload:
+1. Ensure your repository has Code Scanning enabled
+2. The workflow template includes the required permissions (`security-events: write`)
+3. Security scanning may not work on pull requests from forks (by design)
+4. For private repositories, ensure GitHub Advanced Security is enabled
+
+**Permissions Issues:**
+The workflow requires these permissions:
+```yaml
+permissions:
+  contents: read          # For checking out code
+  security-events: write  # For uploading SARIF results
+  actions: read          # For accessing artifacts
+```
+
 #### Azure DevOps
 - Check build logs for specific error details
 - Verify agent capabilities (Node.js, .NET, PowerShell)
@@ -312,28 +328,28 @@ Enable verbose logging by adding `-Verbose` to the build script call:
 
 ```powershell
 # Local debugging
-.\BuildDataverseSolution\build-solution.ps1 -BuildConfiguration "Debug" -Verbose
+.\BuildDataversePCFSolution\build-solution.ps1 -BuildConfiguration "Debug" -Verbose
 
 # In GitHub Actions
-run: .\BuildDataverseSolution\build-solution.ps1 -BuildConfiguration "Release" -CiMode "GitHub" -Verbose
+run: .\BuildDataversePCFSolution\build-solution.ps1 -BuildConfiguration "Release" -CiMode "GitHub" -Verbose
 
 # In Azure DevOps
 script: |
-  .\BuildDataverseSolution\build-solution.ps1 -BuildConfiguration "$(BUILD_CONFIGURATION)" -CiMode "DevOps" -Verbose
+  .\BuildDataversePCFSolution\build-solution.ps1 -BuildConfiguration "$(BUILD_CONFIGURATION)" -CiMode "DevOps" -Verbose
 ```
 
 ## Migration Guide
 
 ### From Existing GitHub Actions
 
-1. Replace your existing build steps with the BuildDataverseSolution system
+1. Replace your existing build steps with the BuildDataversePCFSolution system
 2. Move your configuration to `solution.yaml`
 3. Update your workflow to use the provided template
 4. Test the new workflow with a pull request
 
 ### From Existing Azure DevOps Pipelines
 
-1. Replace your existing build tasks with the BuildDataverseSolution system
+1. Replace your existing build tasks with the BuildDataversePCFSolution system
 2. Move your configuration to `solution.yaml`
 3. Update your pipeline to use the provided template
 4. Test the new pipeline with a feature branch
@@ -364,7 +380,7 @@ script: |
 
 For issues and questions:
 
-1. Check the `BuildDataverseSolution/README.md` for detailed usage instructions
+1. Check the `BuildDataversePCFSolution/README.md` for detailed usage instructions
 2. Review the example configurations in `BuildDataverseSolution/examples/`
 3. Validate your `solution.yaml` against the template
 4. Test locally to isolate CI/CD specific issues

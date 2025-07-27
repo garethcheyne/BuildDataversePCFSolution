@@ -1,4 +1,12 @@
-#!/bin/bash
+## BuildDataversePCFSolution Installation Script for Unix/Linux/macOS
+# This script downloads and installs BuildDataversePCFSolution to your PCF project
+
+set -e
+
+# Version information
+BUILDSOLUTION_VERSION="1.0.0"
+BUILDSOLUTION_REPO="https://github.com/garethcheyne/BuildDataversePCFSolution.git"
+BUILDSOLUTION_RAW_URL="https://raw.githubusercontent.com/garethcheyne/BuildDataversePCFSolution/main"h
 # BuildDataverseSolution Installation Script for Unix/Linux/macOS
 # This script downloads and installs BuildDataverseSolution to your PCF project
 
@@ -49,14 +57,14 @@ test_pcf_project() {
 
 # Get installed version
 get_installed_version() {
-    if [ -f "BuildDataverseSolution/.version" ]; then
+    if [ -f "BuildDataversePCFSolution/.version" ]; then
         # Try to extract version using various tools
         if command -v jq >/dev/null 2>&1; then
-            jq -r '.version' BuildDataverseSolution/.version 2>/dev/null || echo ""
+            jq -r '.version' BuildDataversePCFSolution/.version 2>/dev/null || echo ""
         elif command -v python3 >/dev/null 2>&1; then
-            python3 -c "import json; print(json.load(open('BuildDataverseSolution/.version'))['version'])" 2>/dev/null || echo ""
+            python3 -c "import json; print(json.load(open('BuildDataversePCFSolution/.version'))['version'])" 2>/dev/null || echo ""
         elif command -v python >/dev/null 2>&1; then
-            python -c "import json; print(json.load(open('BuildDataverseSolution/.version'))['version'])" 2>/dev/null || echo ""
+            python -c "import json; print(json.load(open('BuildDataversePCFSolution/.version'))['version'])" 2>/dev/null || echo ""
         else
             echo ""
         fi
@@ -85,12 +93,12 @@ download_file() {
     fi
 }
 
-# Install BuildDataverseSolution
-install_builddataversesolution() {
+# Install BuildDataversePCFSolution
+install_builddataversepcfsolution() {
     local is_upgrade="$1"
     
-    # Create BuildDataverseSolution directory
-    mkdir -p BuildDataverseSolution
+    # Create BuildDataversePCFSolution directory
+    mkdir -p BuildDataversePCFSolution
     
     # List of files to download
     local files=(
@@ -114,7 +122,7 @@ install_builddataversesolution() {
     
     for file in "${files[@]}"; do
         local source_url="$BUILDSOLUTION_RAW_URL/$file"
-        local dest_path="BuildDataverseSolution/$file"
+        local dest_path="BuildDataversePCFSolution/$file"
         
         print_info "Downloading $file..."
         
@@ -128,7 +136,7 @@ install_builddataversesolution() {
     if [ $downloaded_files -eq ${#files[@]} ]; then
         # Create version file
         local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-        cat > BuildDataverseSolution/.version << EOF
+        cat > BuildDataversePCFSolution/.version << EOF
 {
     "version": "$BUILDSOLUTION_VERSION",
     "installedDate": "$timestamp",
@@ -137,9 +145,9 @@ install_builddataversesolution() {
 EOF
         
         if [ "$is_upgrade" = "true" ]; then
-            print_success "BuildDataverseSolution upgraded to version $BUILDSOLUTION_VERSION"
+            print_success "BuildDataversePCFSolution upgraded to version $BUILDSOLUTION_VERSION"
         else
-            print_success "BuildDataverseSolution installed successfully!"
+            print_success "BuildDataversePCFSolution installed successfully!"
         fi
         return 0
     else
@@ -177,8 +185,8 @@ done
 
 # Main installation process
 main() {
-    print_header "BuildDataverseSolution Installer"
-    print_info "Installing BuildDataverseSolution v$BUILDSOLUTION_VERSION"
+    print_header "BuildDataversePCFSolution Installer"
+    print_info "Installing BuildDataversePCFSolution v$BUILDSOLUTION_VERSION"
     
     # Validate PCF project
     if ! test_pcf_project; then
@@ -191,13 +199,13 @@ main() {
     local is_upgrade=false
     
     if [ -n "$installed_version" ]; then
-        print_info "BuildDataverseSolution v$installed_version is already installed"
+        print_info "BuildDataversePCFSolution v$installed_version is already installed"
         
         if [ "$installed_version" = "$BUILDSOLUTION_VERSION" ]; then
             if [ "$FORCE" != "true" ]; then
                 print_info "You already have the latest version installed."
                 print_info "Use --force to reinstall or run PowerShell to reconfigure:"
-                print_info "pwsh BuildDataverseSolution/setup-project.ps1"
+                print_info "pwsh BuildDataversePCFSolution/setup-project.ps1"
                 exit 0
             fi
         else
@@ -213,8 +221,8 @@ main() {
         fi
     fi
     
-    # Install/upgrade BuildDataverseSolution
-    if ! install_builddataversesolution "$is_upgrade"; then
+    # Install/upgrade BuildDataversePCFSolution
+    if ! install_builddataversepcfsolution "$is_upgrade"; then
         exit 1
     fi
     
@@ -225,23 +233,23 @@ main() {
         # Check if PowerShell is available
         if command -v pwsh >/dev/null 2>&1; then
             print_info "Starting interactive setup with PowerShell Core..."
-            pwsh BuildDataverseSolution/setup-project.ps1
+            pwsh BuildDataversePCFSolution/setup-project.ps1
         elif command -v powershell >/dev/null 2>&1; then
             print_info "Starting interactive setup with Windows PowerShell..."
-            powershell -File BuildDataverseSolution/setup-project.ps1
+            powershell -File BuildDataversePCFSolution/setup-project.ps1
         else
             print_warning "PowerShell not found. Please install PowerShell Core to run setup:"
             print_info "https://docs.microsoft.com/en-us/powershell/scripting/install/installing-powershell"
-            print_info "Or run setup manually: pwsh BuildDataverseSolution/setup-project.ps1"
+            print_info "Or run setup manually: pwsh BuildDataversePCFSolution/setup-project.ps1"
         fi
     else
         print_info "Setup skipped. You can run it manually later:"
-        print_info "pwsh BuildDataverseSolution/setup-project.ps1"
+        print_info "pwsh BuildDataversePCFSolution/setup-project.ps1"
     fi
     
     print_header "Installation Complete"
-    print_success "BuildDataverseSolution is ready to use!"
-    print_info "Documentation: BuildDataverseSolution/GETTING-STARTED.md"
+    print_success "BuildDataversePCFSolution is ready to use!"
+    print_info "Documentation: BuildDataversePCFSolution/GETTING-STARTED.md"
 }
 
 main "$@"
