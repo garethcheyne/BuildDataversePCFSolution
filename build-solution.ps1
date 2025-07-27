@@ -30,6 +30,7 @@
     .\build-solution.ps1 -SolutionName "MyCustomSolution" -BuildConfiguration "Debug"
     .\build-solution.ps1 -CiMode "DevOps" -BuildConfiguration "Release"
     .\build-solution.ps1 -SolutionType "Managed" -BuildConfiguration "Release"
+    .\build-solution.ps1 -SolutionType "Unmanaged" -BuildConfiguration "Release"
     .\build-solution.ps1 -SolutionType "Both"
 #>
 
@@ -53,9 +54,11 @@ $ErrorActionPreference = "Stop"
 if ([string]::IsNullOrEmpty($CiMode)) {
     if ($env:GITHUB_ACTIONS -eq "true") {
         $CiMode = "GitHub"
-    } elseif ($env:TF_BUILD -eq "True") {
+    }
+    elseif ($env:TF_BUILD -eq "True") {
         $CiMode = "DevOps"
-    } else {
+    }
+    else {
         $CiMode = "Local"
     }
 }
@@ -65,9 +68,11 @@ function Write-Info {
     param($Message) 
     if ($CiMode -eq "DevOps") {
         Write-Host "##[section]INFO: $Message"
-    } elseif ($CiMode -eq "GitHub") {
+    }
+    elseif ($CiMode -eq "GitHub") {
         Write-Host "::notice::$Message"
-    } else {
+    }
+    else {
         Write-Host "INFO: $Message" -ForegroundColor Cyan 
     }
 }
@@ -76,9 +81,11 @@ function Write-Success {
     param($Message) 
     if ($CiMode -eq "DevOps") {
         Write-Host "##[section]SUCCESS: $Message"
-    } elseif ($CiMode -eq "GitHub") {
+    }
+    elseif ($CiMode -eq "GitHub") {
         Write-Host "::notice::✅ $Message"
-    } else {
+    }
+    else {
         Write-Host "SUCCESS: $Message" -ForegroundColor Green 
     }
 }
@@ -87,9 +94,11 @@ function Write-Warning {
     param($Message) 
     if ($CiMode -eq "DevOps") {
         Write-Host "##[warning]WARNING: $Message"
-    } elseif ($CiMode -eq "GitHub") {
+    }
+    elseif ($CiMode -eq "GitHub") {
         Write-Host "::warning::$Message"
-    } else {
+    }
+    else {
         Write-Host "WARNING: $Message" -ForegroundColor Yellow 
     }
 }
@@ -98,9 +107,11 @@ function Write-BuildError {
     param($Message) 
     if ($CiMode -eq "DevOps") {
         Write-Host "##[error]ERROR: $Message"
-    } elseif ($CiMode -eq "GitHub") {
+    }
+    elseif ($CiMode -eq "GitHub") {
         Write-Host "::error::$Message"
-    } else {
+    }
+    else {
         Write-Host "ERROR: $Message" -ForegroundColor Red 
     }
 }
@@ -180,11 +191,13 @@ try {
         Write-Info "Azure DevOps Build detected (TF_BUILD: $env:TF_BUILD)"
         Write-Info "Build ID: $env:BUILD_BUILDID"
         Write-Info "Build Number: $env:BUILD_BUILDNUMBER"
-    } elseif ($CiMode -eq "GitHub") {
+    }
+    elseif ($CiMode -eq "GitHub") {
         Write-Info "GitHub Actions detected (GITHUB_ACTIONS: $env:GITHUB_ACTIONS)"
         Write-Info "Workflow: $env:GITHUB_WORKFLOW"
         Write-Info "Run ID: $env:GITHUB_RUN_ID"
-    } else {
+    }
+    else {
         Write-Info "Local build environment"
     }
     
@@ -199,14 +212,25 @@ try {
     $finalPublisherPrefix = if ($PublisherPrefix) { $PublisherPrefix } else { $config.publisher.prefix }
     $finalPublisherEmail = if ($PublisherEmail) { $PublisherEmail } else { $config.publisher.email }
     $finalCleanBuild = if ($PSBoundParameters.ContainsKey('CleanBuild')) { $CleanBuild } else { $config.build.cleanBuild -eq "true" }
-    $finalSolutionType = if ($PSBoundParameters.ContainsKey('SolutionType')) { $SolutionType } else { 
-        if ($config.build.solutionType) { $config.build.solutionType } else { "Both" }
+    
+    # Fix SolutionType parameter handling - prioritize command line parameter
+    if ($PSBoundParameters.ContainsKey('SolutionType')) {
+        $finalSolutionType = $SolutionType
+        Write-Info "Using command line SolutionType: $SolutionType"
+    }
+    elseif ($config.build.solutionType) {
+        $finalSolutionType = $config.build.solutionType
+        Write-Info "Using config file SolutionType: $($config.build.solutionType)"
+    }
+    else {
+        $finalSolutionType = "Both"
+        Write-Info "Using default SolutionType: Both"
     }
     
     Write-Info "Starting PCF Control Build Process..."
     Write-Info "Solution Name: $baseSolutionName"
     Write-Info "Solution Version: $solutionVersion"
-    Write-Info "Final Package Name: releases/$finalSolutionName.zip"
+    Write-Info "Package Naming: [name]_[managed/unmanaged]_[version].zip"
     Write-Info "Publisher: $finalPublisherName ($finalPublisherPrefix)"
     if ($finalPublisherEmail) {
         Write-Info "Publisher Email: $finalPublisherEmail"
@@ -239,11 +263,11 @@ try {
         
         # Clean solution packages based on naming pattern in releases directory
         $packagePatterns = @(
-            "$releasesDir/${finalSolutionName}_managed.zip",
-            "$releasesDir/${finalSolutionName}_unmanaged.zip",
+            "$releasesDir/${baseSolutionName}_managed_${solutionVersion}.zip",
+            "$releasesDir/${baseSolutionName}_unmanaged_${solutionVersion}.zip",
             "$releasesDir/$finalSolutionName.zip",  # Legacy single package
-            "${finalSolutionName}_managed.zip",      # Legacy root location
-            "${finalSolutionName}_unmanaged.zip",   # Legacy root location
+            "${baseSolutionName}_managed_${solutionVersion}.zip",      # Legacy root location
+            "${baseSolutionName}_unmanaged_${solutionVersion}.zip",   # Legacy root location
             "$finalSolutionName.zip"                 # Legacy root location
         )
         
@@ -265,7 +289,8 @@ try {
     $npmCmd = if ($config.build.npmCommand) { $config.build.npmCommand } else { "ci" }
     if (Test-Path "package-lock.json") {
         & npm $npmCmd
-    } else {
+    }
+    else {
         & npm install
     }
     if ($LASTEXITCODE -ne 0) { throw "npm install failed" }
@@ -381,7 +406,8 @@ try {
                     if ($publisherEmailNode) {
                         $publisherEmailNode.InnerText = $finalPublisherEmail
                         Write-Info "Updated Publisher Email to: $finalPublisherEmail"
-                    } else {
+                    }
+                    else {
                         # Create email node if it doesn't exist
                         $emailElement = $solutionXml.CreateElement("EMailAddress")
                         $emailElement.InnerText = $finalPublisherEmail
@@ -420,21 +446,21 @@ try {
                     
                     # Define address field mappings
                     $addressFields = @{
-                        "Line1" = $config.publisher.address.line1
-                        "Line2" = $config.publisher.address.line2
-                        "Line3" = $config.publisher.address.line3
-                        "City" = $config.publisher.address.city
-                        "StateOrProvince" = $config.publisher.address.stateOrProvince
-                        "PostalCode" = $config.publisher.address.postalCode
-                        "Country" = $config.publisher.address.country
-                        "County" = $config.publisher.address.county
-                        "Telephone1" = $config.publisher.address.telephone1
-                        "Telephone2" = $config.publisher.address.telephone2
-                        "Telephone3" = $config.publisher.address.telephone3
-                        "Fax" = $config.publisher.address.fax
-                        "Name" = $config.publisher.address.name
+                        "Line1"              = $config.publisher.address.line1
+                        "Line2"              = $config.publisher.address.line2
+                        "Line3"              = $config.publisher.address.line3
+                        "City"               = $config.publisher.address.city
+                        "StateOrProvince"    = $config.publisher.address.stateOrProvince
+                        "PostalCode"         = $config.publisher.address.postalCode
+                        "Country"            = $config.publisher.address.country
+                        "County"             = $config.publisher.address.county
+                        "Telephone1"         = $config.publisher.address.telephone1
+                        "Telephone2"         = $config.publisher.address.telephone2
+                        "Telephone3"         = $config.publisher.address.telephone3
+                        "Fax"                = $config.publisher.address.fax
+                        "Name"               = $config.publisher.address.name
                         "PrimaryContactName" = $config.publisher.address.primaryContactName
-                        "PostOfficeBox" = $config.publisher.address.postOfficeBox
+                        "PostOfficeBox"      = $config.publisher.address.postOfficeBox
                     }
                     
                     # Update address fields if they have values
@@ -470,7 +496,8 @@ try {
             Write-Warning "Failed to update solution.xml: $($_.Exception.Message)"
             Write-Warning "Continuing with build, but solution may have generic names"
         }
-    } else {
+    }
+    else {
         Write-Warning "Solution.xml file not found at expected path: $solutionXmlPath"
         Write-Warning "Solution may use default names"
     }
@@ -486,6 +513,16 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Failed to add PCF reference" }
     Write-Success "PCF control added to solution"
     
+    # Step 10.1: Verify the PCF control was added to the solution
+    Write-Info "Verifying solution structure after adding PCF control..."
+    if (Test-Path "src") {
+        Write-Info "Solution src contents:"
+        Get-ChildItem "src" -Recurse | ForEach-Object { Write-Host "    - $($_.FullName.Replace($PWD, '.'))" }
+    }
+    else {
+        Write-Warning "No src directory found after adding PCF reference"
+    }
+    
     # Step 11: Build solution
     Write-Info "Building solution (Configuration: $BuildConfiguration)..."
     & dotnet build --configuration $BuildConfiguration
@@ -494,98 +531,67 @@ try {
     
     # Step 12: Pack solution(s) based on SolutionType
     Write-Info "Packaging solution(s) - Type: $finalSolutionType..."
-    $buildConfig = $BuildConfiguration.ToLower()
     $createdPackages = @()
     
+    # Create packages based on solution type
     if ($finalSolutionType -eq "Unmanaged" -or $finalSolutionType -eq "Both") {
         Write-Info "Creating unmanaged solution package..."
-        $unmanagedName = "${finalSolutionName}_unmanaged"
+        $unmanagedName = "${baseSolutionName}_unmanaged_${solutionVersion}"
         $unmanagedPath = "../releases/$unmanagedName.zip"
         
-        # Try to find built solution first
-        $solutionFiles = Get-ChildItem -Path "bin/$BuildConfiguration" -Filter "*.zip" -ErrorAction SilentlyContinue
-        if ($solutionFiles.Count -gt 0) {
-            $sourceSolution = $solutionFiles[0].FullName
-            Copy-Item $sourceSolution $unmanagedPath -Force
-            Write-Success "Unmanaged solution packaged from build output: releases/$unmanagedName.zip"
-        } else {
-            # Fallback to manual packing
-            & pac solution pack --zipfile $unmanagedPath --folder src
-            if ($LASTEXITCODE -ne 0) { throw "Unmanaged solution packaging failed" }
-            Write-Success "Unmanaged solution packaged: releases/$unmanagedName.zip"
+        # Set the Managed flag to 0 (Unmanaged) in solution.xml
+        if (Test-Path "src/Other/Solution.xml") {
+            try {
+                [xml]$solutionXml = Get-Content "src/Other/Solution.xml"
+                $managedNode = $solutionXml.SelectSingleNode("//Managed")
+                if ($managedNode) {
+                    $managedNode.InnerText = "0"  # 0 = Unmanaged
+                    Write-Info "Set Managed flag to 0 (Unmanaged) for unmanaged solution"
+                }
+                $solutionXml.Save((Resolve-Path "src/Other/Solution.xml").Path)
+            }
+            catch {
+                Write-Warning "Failed to update Managed flag for unmanaged solution: $($_.Exception.Message)"
+            }
         }
+        
+        # Package the unmanaged solution
+        & pac solution pack --zipfile $unmanagedPath --folder src
+        if ($LASTEXITCODE -ne 0) { throw "Unmanaged solution packaging failed" }
+        Write-Success "Unmanaged solution packaged: releases/$unmanagedName.zip"
         $createdPackages += "releases/$unmanagedName.zip"
     }
     
     if ($finalSolutionType -eq "Managed" -or $finalSolutionType -eq "Both") {
         Write-Info "Creating managed solution package..."
-        $managedName = "${finalSolutionName}_managed"
+        $managedName = "${baseSolutionName}_managed_${solutionVersion}"
         $managedPath = "../releases/$managedName.zip"
         
-        # Important Note: True managed solutions can only be created by importing an unmanaged solution 
-        # into a Power Platform environment and exporting it as managed. 
-        # What we create here is a "managed-style" package that contains the same content as unmanaged
-        # but is intended for production deployment.
-        
-        Write-Info "Creating managed solution package from source..."
-        
-        # Try to create managed solution directly
-        Write-Info "Attempting to create managed solution using PAC CLI..."
-        & pac solution pack --zipfile $managedPath --folder src --packagetype Managed
-        
-        if ($LASTEXITCODE -eq 0) {
-            Write-Info "PAC CLI managed packaging succeeded"
-        } else {
-            Write-Warning "PAC CLI managed packaging failed, using alternative approach..."
-            
-            # Alternative approach: Create unmanaged first, then process it
-            Write-Info "Creating unmanaged solution for managed conversion..."
-            $tempUnmanagedPath = "../releases/temp_for_managed.zip"
-            
-            & pac solution pack --zipfile $tempUnmanagedPath --folder src
-            if ($LASTEXITCODE -ne 0) { 
-                Write-Error "Failed to create base solution for managed conversion"
-                throw "Managed solution packaging failed - unable to create base solution" 
+        # Set the Managed flag to 1 (Managed) in solution.xml
+        if (Test-Path "src/Other/Solution.xml") {
+            try {
+                [xml]$solutionXml = Get-Content "src/Other/Solution.xml"
+                $managedNode = $solutionXml.SelectSingleNode("//Managed")
+                if ($managedNode) {
+                    $managedNode.InnerText = "1"  # 1 = Managed
+                    Write-Info "Set Managed flag to 1 (Managed) for managed solution"
+                }
+                $solutionXml.Save((Resolve-Path "src/Other/Solution.xml").Path)
             }
-            
-            # Copy the unmanaged solution as the managed solution
-            # This creates a package with the same content but labeled for managed deployment
-            Copy-Item $tempUnmanagedPath $managedPath -Force
-            
-            # Clean up temp file
-            Remove-Item $tempUnmanagedPath -Force
-            
-            Write-Info "Created managed solution package from unmanaged base"
+            catch {
+                Write-Warning "Failed to update Managed flag for managed solution: $($_.Exception.Message)"
+            }
         }
         
-        # Verify the managed solution was created and has content
-        if (Test-Path $managedPath) {
-            $managedFileSize = (Get-Item $managedPath).Length
-            if ($managedFileSize -gt 1000) {  # Should be at least 1KB
-                Write-Success "Managed solution packaged: releases/$managedName.zip (${managedFileSize} bytes)"
-                $createdPackages += "releases/$managedName.zip"
-            } else {
-                Write-Error "Managed solution appears to be empty or corrupted (${managedFileSize} bytes)"
-                throw "Managed solution packaging failed - file too small"
-            }
-        } else {
-            Write-Error "Managed solution file was not created"
-            throw "Managed solution packaging failed - file not found"
-        }
+        # Package the managed solution
+        & pac solution pack --zipfile $managedPath --folder src
+        if ($LASTEXITCODE -ne 0) { throw "Managed solution packaging failed" }
+        Write-Success "Managed solution packaged: releases/$managedName.zip"
+        $createdPackages += "releases/$managedName.zip"
         
         Write-Info "Note: This creates a deployment-ready package. For true managed solutions with"
         Write-Info "      restrictions and dependencies, import this into a dev environment and"
         Write-Info "      export as managed through the Power Platform admin center."
-    }
-                $createdPackages += "releases/$managedName.zip"
-            } else {
-                Write-Error "Managed solution appears to be empty or corrupted (${managedFileSize} bytes)"
-                throw "Managed solution packaging failed - file too small"
-            }
-        } else {
-            Write-Error "Managed solution file was not created"
-            throw "Managed solution packaging failed - file not found"
-        }
     }
     
     # Step 13: Return to root directory
@@ -600,25 +606,27 @@ try {
         foreach ($package in $createdPackages) {
             if (Test-Path $package) {
                 $zipSize = (Get-Item $package).Length
-                $sizeKB = [math]::Round($zipSize/1KB, 2)
+                $sizeKB = [math]::Round($zipSize / 1KB, 2)
                 $totalSize += $zipSize
                 
                 # Validate minimum package size
                 $minSize = if ($config.validation.solutionValidation.minPackageSize) { 
                     [int]$config.validation.solutionValidation.minPackageSize 
-                } else { 1024 }
+                }
+                else { 1024 }
                 
                 if ($zipSize -lt $minSize) {
                     Write-Warning "Solution package size ($sizeKB KB) is smaller than expected minimum ($([math]::Round($minSize/1KB, 2)) KB) for $package"
                 }
                 
                 Write-Host "  - $package ($sizeKB KB)"
-            } else {
+            }
+            else {
                 Write-Warning "Expected package not found: $package"
             }
         }
         
-        $totalSizeKB = [math]::Round($totalSize/1KB, 2)
+        $totalSizeKB = [math]::Round($totalSize / 1KB, 2)
         Write-Info "Total package size: $totalSizeKB KB"
         
         # List all build outputs
@@ -643,7 +651,8 @@ try {
             }
         }
         
-    } else {
+    }
+    else {
         throw "No solution packages were created"
     }
     
@@ -652,7 +661,8 @@ try {
     # Set CI-specific success indicators
     if ($CiMode -eq "DevOps") {
         Write-Host "##vso[task.complete result=Succeeded;]Build completed successfully"
-    } elseif ($CiMode -eq "GitHub") {
+    }
+    elseif ($CiMode -eq "GitHub") {
         Write-Host "::notice::✅ Build completed successfully"
     }
     
@@ -671,12 +681,14 @@ catch {
         if ($stackTrace) {
             Write-Host "##[debug]Stack trace: $stackTrace"
         }
-    } elseif ($CiMode -eq "GitHub") {
+    }
+    elseif ($CiMode -eq "GitHub") {
         Write-Host "::error::Build failed: $errorMessage"
         if ($stackTrace) {
             Write-Host "::debug::Stack trace: $stackTrace"
         }
-    } else {
+    }
+    else {
         Write-Host "Stack trace: $stackTrace" -ForegroundColor Red
     }
     
